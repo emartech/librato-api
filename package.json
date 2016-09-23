@@ -1,6 +1,6 @@
 {
   "name": "librato-api",
-  "version": "0.1.1",
+  "version": "0.2.0",
   "description": "A Librato backend API client library and a simple CLI tool.",
   "main": "index.js",
   "scripts": {
@@ -11,7 +11,7 @@
   },
   "bin": {
     "librato": "./librato.js"
-    },
+  },
   "repository": {
     "type": "git",
     "url": "git+https://github.com/emartech/librato-api.git"
