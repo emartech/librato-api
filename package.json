@@ -9,6 +9,9 @@
     "test-watch": "npm run test -- --watch",
     "eslint": "eslint ."
   },
+  "bin": {
+    "librato": "./librato.js"
+    },
   "repository": {
     "type": "git",
     "url": "git+https://github.com/emartech/librato-api.git"
@@ -30,7 +33,8 @@
     "mz": "^2.4.0",
     "request": "^2.75.0",
     "request-promise": "^4.1.1",
-    "require-dir": "^0.3.0"
+    "require-dir": "^0.3.0",
+    "winston": "^2.2.0"
   },
   "devDependencies": {
     "chai": "^3.5.0",
@@ -43,6 +47,6 @@
     "sinon-chai": "^2.8.0"
   },
   "engines": {
-    "node": "5.12.0"
+    "node": ">=5.0.0"
   }
 }

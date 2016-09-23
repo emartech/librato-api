@@ -37,4 +37,18 @@ For a full description of the Librato API see the official
     // not everything is explicitly supported yet, but you can do generic requests like this
     libratoApi.apiRequest(['alerts', 123], { name: 'myalert', ... }, { method: 'PUT' })
 
+# CLI Tool
 
+This package installs a CLI tool named "librato" into your global or package bin-dir.
+
+You have to export LIBRATO_USER and LIBRATO_TOKEN for authentication to work.
+
+    $ export LIBRATO_USER='...'
+    $ export LIBRATO_TOKEN='...'
+    $ librato help
+    $ librato list-metrics
+    $ ...
+
+Warning: This tool is very new and little tested.
+
+TODO: Describe the tool's configuration-directory feature.
