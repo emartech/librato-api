@@ -11,7 +11,7 @@ parameters.
 For a full description of the Librato API see the official
 [Librato API](https://www.librato.com/docs/api/).
 
-# Example
+# Examples
 
     // uses LIBRATO_USER and LIBRATO_TOKEN in the process'es environment
     const libratoApi = require('librato-api')
@@ -27,7 +27,7 @@ For a full description of the Librato API see the official
 
     libratoApi.getMetric('router.bytes', { qs: { start_time: date1, end_time: date2 }})
 
-    libratoApi.putMetric({ name: 'customers', 'period': 3600 })
+    libratoApi.putMetric('customers', { 'period': 3600 })
 
     // assuming co()
     const myspace = yield libratoApi.findSpaceByName('myspace')
