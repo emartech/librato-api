@@ -263,8 +263,6 @@ const actions = {
 /**
  * CLI tool to manage Librato backend configuration.
  *
- * @TODO extract this (with LibratoClient) to an npm package for @TamasTancos.
- *
  * @author Jürgen Strobel <juergen.strobel@emarsys.com>
  */
 function * main (argv) {
@@ -272,6 +270,9 @@ function * main (argv) {
   const args = _.drop(3, argv)
   function * unknownCommand () { throw new Error(`unknown command ${cmd}, use "help"`) }
   try {
+    if (process.env.LIBRATO_USER === undefined || process.env.LIBRATO_TOKEN === undefined) {
+      throw new Error('LIBRATO_USER and LIBRATO_TOKEN must be set in the environment')
+    }
     // let's look at proper argv parsing sometime
     // https://www.npmjs.com/package/command-line-args
     // or https://github.com/75lb/command-line-commands
