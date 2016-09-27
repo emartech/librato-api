@@ -4,10 +4,13 @@
   "description": "A Librato backend API client library and a simple CLI tool.",
   "main": "index.js",
   "scripts": {
-    "prepublish": "npm run test && npm run eslint",
+    "prepublish": "npm run test && npm run eslint && npm run coverage && npm run coverage-check",
     "test": "NODE_ENV=test TZ=utc mocha --require co-mocha *.spec.js",
     "test-watch": "npm run test -- --watch",
-    "eslint": "eslint ."
+    "eslint": "eslint .",
+    "coverage": "nyc npm test >/dev/null && nyc report -r html -r text",
+    "coverage-check": "nyc check-coverage --lines 100 --functions 100 --branches 95",
+    "coverage-open": "open coverage/index.html"
   },
   "bin": {
     "librato": "./librato.js"
@@ -44,10 +47,16 @@
     "eslint": "^3.5.0",
     "eslint-plugin-standard": "^2.0.0",
     "mocha": "^3.0.2",
+    "nyc": "^8.3.0",
     "sinon": "^1.17.6",
     "sinon-chai": "^2.8.0"
   },
   "engines": {
     "node": ">=5.0.0"
-  }
-}
+  },
+  "nyc": {
+    "exclude": [
+      "**/*.spec.js",
+      "node_modules/*"
+    ]
+  }}
