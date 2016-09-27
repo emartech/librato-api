@@ -231,13 +231,6 @@ function * updateFromDir (configDir) {
   if (errorCount > 0) { throw new Error(`${errorCount} errors occured`) }
 }
 
-// -- hidden dev actions
-
-function * _adhoc () {
-  logger.verbose('adhoc')
-  // foo
-}
-
 // -- main
 
 function * help () {
@@ -256,8 +249,7 @@ const actions = {
   'show-config-dir': showConfigDir,
   'show-raw-config-dir': showRawConfigDir,
   'update-from-dir': updateFromDir,
-  'help': help,
-  '_adhoc': _adhoc
+  'help': help
 }
 
 /**
