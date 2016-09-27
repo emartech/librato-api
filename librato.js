@@ -4,12 +4,13 @@
 const _ = require('lodash/fp')
 const assert = require('assert')
 const co = require('co')
+const combinatorics = require('js-combinatorics')
 const fs = require('mz/fs')
 const path = require('path')
 const requireDir = require('require-dir')
 const winston = require('winston')
 
-const librato = require('./index')
+const libratoApi = require('./index')
 
 const logger = new winston.Logger({
   level: process.env.LIBRATO_LOG_LEVEL || process.env.LOG_LEVEL || 'info',
@@ -46,22 +47,19 @@ function processRawConfig (config) {
   // support single objects or arrays in files in nested dirs, flatten to one level
   const allFlat = _.flow(_.defaultTo([]), _.toArray, _.flatten)
 
-  // create all combinatorial permutations of values in config.template_values
-  const allPermsRec = (acc, keys) =>
-    _.isEmpty(keys)
-      ? acc
-      : _.flatMap(
-        value => allPermsRec(_.merge(acc, { [keys[0]]: value }), _.drop(1, keys)),
-        config.template_values[keys[0]]
-      )
-  const templateValuePermutations =
-    _.isEmpty(config.template_values)
-      ? [{}]
-      : allPermsRec({}, _.keys(config.template_values))
+  const createTemplateValuePermutations = () => {
+    const keys = _.reverse(_.keys(config.template_values))
+    const values = _.reverse(_.values(config.template_values))
+    const vs = _.spread(combinatorics.cartesianProduct)(values).toArray()
+    const zipKeysToObj = _.flow(_.zip(keys), _.fromPairs)
+    return _.map(zipKeysToObj, vs)
+  }
+  const templateValuePermutations = createTemplateValuePermutations()
   logger.debug({
     template_values: config.template_values,
     permutations: _.size(templateValuePermutations)
   })
+  logger.silly({ templateValuePermutations })
 
   // template factories, simple and lifted to obj properties
   const createTemplate = source =>
@@ -114,20 +112,20 @@ function processRawConfig (config) {
 
 function * listMetrics (maybeSink) {
   logger.verbose('listing metrics', { to: maybeSink })
-  const metrics = yield librato.getAllPaginated(librato.getMetrics)
+  const metrics = yield libratoApi.getAllPaginated(libratoApi.getMetrics)
   const compact = _.map(_.get('name'), metrics)
   yield writeFileOrFd(maybeSink, jsonStringify(compact))
 }
 
 function * getMetrics (maybeSink) {
   logger.verbose('dumping metrics', { to: maybeSink })
-  const metrics = yield librato.getAllPaginated(librato.getMetrics)
+  const metrics = yield libratoApi.getAllPaginated(libratoApi.getMetrics)
   yield writeFileOrFd(maybeSink, jsonStringify(metrics))
 }
 
 function * getMetric (name, maybeSink) {
   logger.verbose('retrieving metric %s', name, { name, to: maybeSink })
-  const metric = yield librato.getMetric(name)
+  const metric = yield libratoApi.getMetric(name)
   yield writeFileOrFd(maybeSink, jsonStringify(metric))
 }
 
@@ -135,14 +133,14 @@ function * getMetric (name, maybeSink) {
 
 function * listSpaces (maybeSink) {
   logger.verbose('listing spaces', { to: maybeSink })
-  const spaces = yield librato.getAllPaginated(librato.getSpaces)
+  const spaces = yield libratoApi.getAllPaginated(libratoApi.getSpaces)
   const compact = _.reduce((acc, s) => _.set(s.id, s.name, acc), {}, spaces)
   yield writeFileOrFd(maybeSink, jsonStringify(compact))
 }
 
 function * dumpSpace (name, maybeSink) {
   logger.verbose('dumping space', { space: name, to: maybeSink })
-  const space = yield librato.dumpSpace(name)
+  const space = yield libratoApi.dumpSpace(name)
   yield writeFileOrFd(maybeSink, jsonStringify(space))
 }
 
@@ -152,13 +150,13 @@ function * createOrUpdateSpace (maybeSource) {
   const buffer = yield fs.readFile(source)
   const space = JSON.parse(buffer.toString())
   logger.debug('space definition', { space })
-  yield librato.createOrUpdateSpace(space)
+  yield libratoApi.createOrUpdateSpace(space)
 }
 
 function * deleteSpace (name) {
   logger.verbose('deleting space', { space: name })
-  const space = yield librato.findSpaceByName(name)
-  yield librato.deleteSpace(space.id)
+  const space = yield libratoApi.findSpaceByName(name)
+  yield libratoApi.deleteSpace(space.id)
 }
 
 // -- config dir actions
@@ -208,16 +206,16 @@ function * updateFromDir (configDir) {
     action.then(logOK(what, id)).catch(ignore404).catch(logAndCountError(what, id))
 
   const deleteMetric = name =>
-    withLoggingIgnore404('delete metric', name, librato.deleteMetric(name))
+    withLoggingIgnore404('delete metric', name, libratoApi.deleteMetric(name))
   const updateMetric = metric =>
-    withLogging('update metric', metric.name, librato.putMetric(metric.name, metric))
+    withLogging('update metric', metric.name, libratoApi.putMetric(metric.name, metric))
   const deleteSpace = name =>
     withLoggingIgnore404(
       'delete space', name,
-      librato.findSpaceByName(name).then(_.get('id')).then(librato.deleteSpace)
+      libratoApi.findSpaceByName(name).then(_.get('id')).then(libratoApi.deleteSpace)
     )
   const updateSpace = space =>
-    withLogging('update space', space.name, librato.createOrUpdateSpace(space))
+    withLogging('update space', space.name, libratoApi.createOrUpdateSpace(space))
 
   yield {
     outdated: {

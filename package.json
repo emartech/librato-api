@@ -26,9 +26,10 @@
   "bugs": {
     "url": "https://github.com/emartech/librato-api/issues"
   },
-  "homepage": "https://github.com/emartech/librato-api#readme",
+  "homepage": "https://www.npmjs.com/package/librato-api",
   "dependencies": {
     "co": "^4.6.0",
+    "js-combinatorics": "^0.5.2",
     "lodash": "^4.16.1",
     "mz": "^2.4.0",
     "request": "^2.75.0",
