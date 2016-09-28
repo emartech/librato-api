@@ -2,14 +2,13 @@
 'use strict'
 
 const _ = require('lodash/fp')
-const assert = require('assert')
 const co = require('co')
 const fs = require('mz/fs')
 const path = require('path')
 const requireDir = require('require-dir')
 const winston = require('winston')
 
-const librato = require('./index')
+const LibratoApi = require('./index').LibratoApi
 
 const logger = new winston.Logger({
   level: process.env.LIBRATO_LOG_LEVEL || process.env.LOG_LEVEL || 'info',
@@ -22,6 +21,7 @@ const logger = new winston.Logger({
     })
   ]
 })
+const libratoApi = new LibratoApi({ logger })
 
 const jsonStringify = json => JSON.stringify(json, undefined, 2) + '\n'
 
@@ -32,102 +32,29 @@ function writeFileOrFd (maybeSink) {
   return write.apply(fs, _.chain(arguments).drop(1).unshift(sink).value())
 }
 
-// sync IO
+// does sync IO
 function readConfigDir (path) {
   return requireDir(path, { recurse: true })
-}
-
-// Transforms config:
-// 1. simplify structure read from dir (flattens subdirs and creates predictable arrays)
-// 2. merge the __default__ metric with all other metrics and remove it
-// 3. apply template_values to metric name/display_name/composite properties and
-//    outdated metric names
-function processRawConfig (config) {
-  // support single objects or arrays in files in nested dirs, flatten to one level
-  const allFlat = _.flow(_.defaultTo([]), _.toArray, _.flatten)
-
-  // create all combinatorial permutations of values in config.template_values
-  const allPermsRec = (acc, keys) =>
-    _.isEmpty(keys)
-      ? acc
-      : _.flatMap(
-        value => allPermsRec(_.merge(acc, { [keys[0]]: value }), _.drop(1, keys)),
-        config.template_values[keys[0]]
-      )
-  const templateValuePermutations =
-    _.isEmpty(config.template_values)
-      ? [{}]
-      : allPermsRec({}, _.keys(config.template_values))
-  logger.debug({
-    template_values: config.template_values,
-    permutations: _.size(templateValuePermutations)
-  })
-
-  // template factories, simple and lifted to obj properties
-  const createTemplate = source =>
-    // lodash/fp is missing the arity-2 template function, so we need to un-fix it to pass options
-    _.template.convert({fixed: false})(source, { interpolate: /{{([\s\S]+?)}}/g })
-  const createPropsTemplate = obj => pathes => {
-    const propValues = _.at(pathes, obj)
-    const propTemplates = _.map(t => t ? createTemplate(t) : null, propValues)
-    const evalPropTemplates = data => _.map(pt => pt ? pt(data) : null, propTemplates)
-    const pathesZipEvaled =
-      data => _.filter(x => x[1] !== null, _.zip(pathes, evalPropTemplates(data)))
-    const setPathEvaled = (acc, pe) => _.set(pe[0], pe[1], acc)
-    return data => _.reduce(setPathEvaled, obj, pathesZipEvaled(data))
-  }
-
-  // permutations in the sense of different template evaluations with templateValuePermutations
-  const templatePermutations = template =>
-    _.uniq(_.map(createTemplate(template), templateValuePermutations))
-  const templatesPermutations = _.flatMap(templatePermutations)
-  const permutationsOfObj = createObjTemplate => obj =>
-    _.uniqWith(_.isEqual, _.map(createObjTemplate(obj), templateValuePermutations))
-  const permutationsOfObjs = createObjTemplate => _.flatMap(permutationsOfObj(createObjTemplate))
-
-  // custom metrics processing
-  const applyDefaultMetric = metrics => {
-    // want ES6: const [[defaultMetric={}], rest] = _.partition(...)
-    const ps = _.partition(x => x.name === '__default__', metrics)
-    assert(ps[0].length <= 1, 'more than 1 __default__ metric')
-    const defaultMetric = ps[0][0] || {}
-    const rest = ps[1]
-    logger.debug({ defaultMetric })
-    return _.map(m => _.merge(defaultMetric, m), rest)
-  }
-  const createMetricTemplate = metric =>
-    createPropsTemplate(metric)(['name', 'display_name', 'composite'])
-  const processRawMetrics =
-    _.flow(allFlat, applyDefaultMetric, permutationsOfObjs(createMetricTemplate))
-
-  return {
-    metrics: processRawMetrics(config.metrics),
-    spaces: allFlat(config.spaces),
-    outdated: {
-      metrics: templatesPermutations(config.outdated.metrics),
-      spaces: config.outdated.spaces
-    }
-  }
 }
 
 // -- metric actions
 
 function * listMetrics (maybeSink) {
   logger.verbose('listing metrics', { to: maybeSink })
-  const metrics = yield librato.getAllPaginated(librato.getMetrics)
+  const metrics = yield libratoApi.getAllPaginated(libratoApi.getMetrics)
   const compact = _.map(_.get('name'), metrics)
   yield writeFileOrFd(maybeSink, jsonStringify(compact))
 }
 
 function * getMetrics (maybeSink) {
   logger.verbose('dumping metrics', { to: maybeSink })
-  const metrics = yield librato.getAllPaginated(librato.getMetrics)
+  const metrics = yield libratoApi.getAllPaginated(libratoApi.getMetrics)
   yield writeFileOrFd(maybeSink, jsonStringify(metrics))
 }
 
 function * getMetric (name, maybeSink) {
   logger.verbose('retrieving metric %s', name, { name, to: maybeSink })
-  const metric = yield librato.getMetric(name)
+  const metric = yield libratoApi.getMetric(name)
   yield writeFileOrFd(maybeSink, jsonStringify(metric))
 }
 
@@ -135,14 +62,14 @@ function * getMetric (name, maybeSink) {
 
 function * listSpaces (maybeSink) {
   logger.verbose('listing spaces', { to: maybeSink })
-  const spaces = yield librato.getAllPaginated(librato.getSpaces)
+  const spaces = yield libratoApi.getAllPaginated(libratoApi.getSpaces)
   const compact = _.reduce((acc, s) => _.set(s.id, s.name, acc), {}, spaces)
   yield writeFileOrFd(maybeSink, jsonStringify(compact))
 }
 
 function * dumpSpace (name, maybeSink) {
   logger.verbose('dumping space', { space: name, to: maybeSink })
-  const space = yield librato.dumpSpace(name)
+  const space = yield libratoApi.dumpSpace(name)
   yield writeFileOrFd(maybeSink, jsonStringify(space))
 }
 
@@ -152,13 +79,13 @@ function * createOrUpdateSpace (maybeSource) {
   const buffer = yield fs.readFile(source)
   const space = JSON.parse(buffer.toString())
   logger.debug('space definition', { space })
-  yield librato.createOrUpdateSpace(space)
+  yield libratoApi.createOrUpdateSpace(space)
 }
 
 function * deleteSpace (name) {
   logger.verbose('deleting space', { space: name })
-  const space = yield librato.findSpaceByName(name)
-  yield librato.deleteSpace(space.id)
+  const space = yield libratoApi.findSpaceByName(name)
+  yield libratoApi.deleteSpace(space.id)
 }
 
 // -- config dir actions
@@ -166,7 +93,7 @@ function * deleteSpace (name) {
 function * showConfigDir (configDir, maybeSink) {
   const absConfigDir = path.join(process.cwd(), configDir)
   logger.verbose('reading config dir %s', absConfigDir)
-  const config = processRawConfig(readConfigDir(absConfigDir))
+  const config = libratoApi._processRawConfig(readConfigDir(absConfigDir))
   yield writeFileOrFd(maybeSink, jsonStringify(config))
 }
 
@@ -182,11 +109,13 @@ function * showRawConfigDir (configDir, maybeSink) {
  *  We could check this, alert, and provid an option to delete-and-recreate.
  *  But we don't know how the mentioned undocumented attributes are used, maybe they are
  *  informational only and we can ignore this.
+ * @TODO move the bulk of the logic here to LibratoAPI,
+ *  collect errors like in createOrUpdateSpace, and provide tests.
  */
 function * updateFromDir (configDir) {
   const absConfigDir = path.join(process.cwd(), configDir)
   logger.verbose('updating configuration from config dir %s', absConfigDir)
-  const config = processRawConfig(readConfigDir(absConfigDir))
+  const config = libratoApi._processRawConfig(readConfigDir(absConfigDir))
 
   var errorCount = 0
   const logOK = (what, id) => _result => {
@@ -208,16 +137,16 @@ function * updateFromDir (configDir) {
     action.then(logOK(what, id)).catch(ignore404).catch(logAndCountError(what, id))
 
   const deleteMetric = name =>
-    withLoggingIgnore404('delete metric', name, librato.deleteMetric(name))
+    withLoggingIgnore404('delete metric', name, libratoApi.deleteMetric(name))
   const updateMetric = metric =>
-    withLogging('update metric', metric.name, librato.putMetric(metric.name, metric))
+    withLogging('update metric', metric.name, libratoApi.putMetric(metric.name, metric))
   const deleteSpace = name =>
     withLoggingIgnore404(
       'delete space', name,
-      librato.findSpaceByName(name).then(_.get('id')).then(librato.deleteSpace)
+      libratoApi.findSpaceByName(name).then(_.get('id')).then(libratoApi.deleteSpace)
     )
   const updateSpace = space =>
-    withLogging('update space', space.name, librato.createOrUpdateSpace(space))
+    withLogging('update space', space.name, libratoApi.createOrUpdateSpace(space))
 
   yield {
     outdated: {
@@ -229,13 +158,6 @@ function * updateFromDir (configDir) {
   }
 
   if (errorCount > 0) { throw new Error(`${errorCount} errors occured`) }
-}
-
-// -- hidden dev actions
-
-function * _adhoc () {
-  logger.verbose('adhoc')
-  // foo
 }
 
 // -- main
@@ -256,8 +178,7 @@ const actions = {
   'show-config-dir': showConfigDir,
   'show-raw-config-dir': showRawConfigDir,
   'update-from-dir': updateFromDir,
-  'help': help,
-  '_adhoc': _adhoc
+  'help': help
 }
 
 /**

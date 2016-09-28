@@ -1,0 +1,10 @@
+{
+  "name": "system.dynos",
+  "type": "gauge",
+  "period": 3600,
+  "source_lag": 900,
+  "attributes": {
+    "l2met_type": "sample",
+    "summarize_function": "average"
+  }
+}

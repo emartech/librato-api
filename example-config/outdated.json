@@ -1,0 +1,11 @@
+{
+  "metrics": [
+    "test1",
+    "test.foo",
+    "report.{{report_counter_name}}",
+    "report.{{report_sample_name}}"
+  ],
+  "spaces": [
+    "testspace"
+  ]
+}

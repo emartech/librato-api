@@ -2,16 +2,16 @@
 
 A Librato backend API client library and a simple CLI tool.
 
-Note this intended to manage your Librato backend configuration,
-but not to submit stats. There's already a multitude of other packages doing that.
+This package allows you to manage your Librato backend configuration,
+but not to submit stats. There are other packages doing that.
 
-This can also be used to query metrics by supplying start\_time, end\_time, and other optional
-parameters.
+It can also be used to query metrics time series values by supplying
+start\_time, end\_time, and other optional parameters to #getMetric.
 
 For a full description of the Librato API see the official
-[Librato API](https://www.librato.com/docs/api/).
+[Librato API](https://www.librato.com/docs/api/) documentation.
 
-# Examples
+## Examples
 
     // uses LIBRATO_USER and LIBRATO_TOKEN in the process'es environment
     const libratoApi = require('librato-api')
@@ -37,7 +37,7 @@ For a full description of the Librato API see the official
     // not everything is explicitly supported yet, but you can do generic requests like this
     libratoApi.apiRequest(['alerts', 123], { name: 'myalert', ... }, { method: 'PUT' })
 
-# CLI Tool
+## CLI Tool
 
 This package installs a CLI tool named "librato" into your global or package bin-dir.
 
@@ -49,6 +49,17 @@ You have to export LIBRATO_USER and LIBRATO_TOKEN for authentication to work.
     $ librato list-metrics
     $ ...
 
-Warning: This tool is very new and little tested.
+### Warning
 
-TODO: Describe the tool's configuration-directory feature.
+This tool is quite new and still a bit rough regarding command line parsing,
+integrated help, etc. To see what it's doing it may be helpful to set LOG_LEVEL to verbose or debug.
+
+### Configuration Directory Support
+
+Apart from functions which model single API calls, the tool can take a local directory
+containing json or js files in a certain structure and apply the contained metrics and spaces to
+a Librato account with the "update-from-dir" command. The repository contains an example directory
+"example-config".
+
+There's even some templating support to create serieses of similar metrics. The "show-config-dir"
+command can be used to debug templating easily.

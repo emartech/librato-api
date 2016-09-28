@@ -1,0 +1,5 @@
+{
+  "report_section": ["foo", "bar"],
+  "report_counter_name": ["opens", "clicks", "conversions"],
+  "report_sample_name": ["rate1"]
+}
