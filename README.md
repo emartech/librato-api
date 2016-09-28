@@ -62,4 +62,4 @@ a Librato account with the "update-from-dir" command. The repository contains an
 "example-config".
 
 There's even some templating support to create serieses of similar metrics. The "show-config-dir"
-can be used to debug templating easily.
+command can be used to debug templating easily.
