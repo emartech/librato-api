@@ -3,8 +3,11 @@
 const _ = require('lodash/fp')  // note fp variant
 const assert = require('assert')
 const co = require('co')
+const combinatorics = require('js-combinatorics')
 const request = require('request-promise')
 const StatusCodeError = require('request-promise/errors').StatusCodeError
+const uuid = require('uuid')
+const winston = require('winston')
 
 const _build = method => body => ({ method, body })
 const post = _build('POST')
@@ -25,6 +28,7 @@ const noSuchOrObj = _.curry((what, name, obj) => _.isUndefined(obj) ? noSuch(wha
  *   - serviceUrl (String): the base of the service URL
  *   - auth (object): passed to the underlying request handler in each request
  *   - request: the underlying request-promise object, may be used to set defaults
+ *   - logger: use a custom logger, else try winston.loggers.LibratoAPi or root winston
  *
  * @see https://www.librato.com/docs/api/?shell#introduction
  *
@@ -39,6 +43,7 @@ class LibratoApi {
     this.serviceUrl = o.serviceUrl || 'https://metrics-api.librato.com/v1'
     this.auth = o.auth || { user: process.env.LIBRATO_USER, pass: process.env.LIBRATO_TOKEN }
     this.request = o.request || request
+    this.logger = o.logger || winston.loggers.LibratoApi || winston
   }
 
   /**
@@ -53,19 +58,31 @@ class LibratoApi {
    *
    * The underlying request-promise and the given options may change several aspects of
    * this method, e.g. via resolveWithFullResponse: true or simple: false.
+   *
+   * The request is logged on debug, the result on silly (with a UUID).
    */
   apiRequest (path, opts, opts2) {
-    return this.request(
-      _.merge(
-        {
-          url: [this.serviceUrl, ...path].join('/'),
-          auth: this.auth,
-          json: true
-        },
-        opts || {},
-        opts2 || {}
-      )
+    const requestId = uuid.v4()
+    const options = _.merge(
+      {
+        url: [this.serviceUrl, ...path].join('/'),
+        auth: this.auth,
+        json: true
+      },
+      opts || {},
+      opts2 || {}
     )
+    const logResult = result => {
+      this.logger.silly('LibratoAPI#apiRequest result', { result, requestId })
+      return result
+    }
+    const logErrorRethrow = error => {
+      this.logger.silly('LibratoAPI#apiRequest error', { error, requestId })
+      throw error
+    }
+
+    this.logger.debug('LibratoAPI#apiRequest', { path, opts, opts2, requestId })
+    return this.request(options).then(logResult).catch(logErrorRethrow)
   }
 
   /**
@@ -312,6 +329,83 @@ class LibratoApi {
       ]
       validateChartResults(chartResults)
     })
+  }
+
+  // Transforms config:
+  // 1. simplify structure read from a config dir (flattens subdirs and creates predictable arrays)
+  // 2. merge the __default__ metric with all other metrics and remove it
+  // 3. apply template_values to metric name/display_name/composite properties and
+  //    outdated metric names
+  // Note: So far this is used only by the CLI tool, see the TODO in updateFromDir there.
+  _processRawConfig (config) {
+    // support single objects or arrays in files in nested dirs, flatten to one level
+    const allFlat = _.flow(_.defaultTo([]), _.toArray, _.flatten)
+
+    const metrics = allFlat(config.metrics)
+    const spaces = allFlat(config.spaces)
+    const outdated = _.merge({ metrics: [], spaces: [] }, config.outdated)
+    const templateValues = config.template_values || []
+
+    const createTemplateValuePermutations = templateValues => {
+      const keys = _.reverse(_.keys(templateValues))
+      const values = _.reverse(_.values(templateValues))
+      const vs = _.spread(combinatorics.cartesianProduct)(values).toArray()
+      const zipKeysToObj = _.flow(_.zip(keys), _.fromPairs)
+      return _.map(zipKeysToObj, vs)
+    }
+    const templateValuePermutations =
+      _.isEmpty(templateValues) ? [{}] : createTemplateValuePermutations(templateValues)
+    this.logger.debug({
+      template_values: config.template_values,
+      permutations: _.size(templateValuePermutations)
+    })
+    this.logger.silly({ templateValuePermutations })
+
+    // template factories, simple and lifted to obj properties
+    const createTemplate = source =>
+      // lodash/fp is missing the arity-2 template function, so we need to un-fix it to pass options
+      _.template.convert({fixed: false})(source, { interpolate: /{{([\s\S]+?)}}/g })
+    const createPropsTemplate = obj => pathes => {
+      const propValues = _.at(pathes, obj)
+      const propTemplates = _.map(t => t ? createTemplate(t) : null, propValues)
+      const evalPropTemplates = data => _.map(pt => pt ? pt(data) : null, propTemplates)
+      const pathesZipEvaled =
+        data => _.filter(x => x[1] !== null, _.zip(pathes, evalPropTemplates(data)))
+      const setPathEvaled = (acc, pe) => _.set(pe[0], pe[1], acc)
+      return data => _.reduce(setPathEvaled, obj, pathesZipEvaled(data))
+    }
+
+    // permutations in the sense of different template evaluations with templateValuePermutations
+    const templatePermutations = template =>
+      _.uniq(_.map(createTemplate(template), templateValuePermutations))
+    const templatesPermutations = _.flatMap(templatePermutations)
+    const permutationsOfObj = createObjTemplate => obj =>
+      _.uniqWith(_.isEqual, _.map(createObjTemplate(obj), templateValuePermutations))
+    const permutationsOfObjs = createObjTemplate => _.flatMap(permutationsOfObj(createObjTemplate))
+
+    // custom metrics processing
+    const applyDefaultMetric = metrics => {
+      // want ES6: const [[defaultMetric={}], rest] = _.partition(...)
+      const ps = _.partition(x => x.name === '__default__', metrics)
+      assert(ps[0].length <= 1, 'more than 1 __default__ metric')
+      const defaultMetric = ps[0][0] || {}
+      const rest = ps[1]
+      this.logger.debug({ defaultMetric })
+      return _.map(m => _.merge(defaultMetric, m), rest)
+    }
+    const createMetricTemplate = metric =>
+      createPropsTemplate(metric)(['name', 'display_name', 'composite'])
+    const processRawMetrics =
+      _.flow(applyDefaultMetric, permutationsOfObjs(createMetricTemplate))
+
+    return {
+      metrics: processRawMetrics(metrics),
+      spaces,
+      outdated: {
+        metrics: templatesPermutations(outdated.metrics),
+        spaces: outdated.spaces
+      }
+    }
   }
 }
 

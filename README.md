@@ -49,6 +49,9 @@ You have to export LIBRATO_USER and LIBRATO_TOKEN for authentication to work.
     $ librato list-metrics
     $ ...
 
-Warning: This tool is very new and little tested.
+### Warning
+
+This tool is quite new and still a bit rough regarding command line parsing,
+integrated help, etc. To see what it's doing it may be helpful to set LOG_LEVEL to verbose or debug.
 
 TODO: Describe the tool's configuration-directory feature.

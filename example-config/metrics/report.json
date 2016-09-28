@@ -1,0 +1,22 @@
+[
+  {
+    "name": "report.{{report_section}}.{{report_counter_name}}",
+    "type": "gauge",
+    "period": 86400,
+    "source_lag": 900,
+    "attributes": {
+      "l2met_type": "counter",
+      "summarize_function": "sum"
+    }
+  },
+  {
+    "name": "report.{{report_section}}.{{report_sample_name}}",
+    "type": "gauge",
+    "period": 86400,
+    "source_lag": 900,
+    "attributes": {
+      "l2met_type": "sample",
+      "summarize_function": "average"
+    }
+  }
+]

@@ -1,0 +1,266 @@
+{
+  "name": "System",
+  "charts": [
+    {
+      "name": "Dynos",
+      "type": "stacked",
+      "streams": [
+        {
+          "metric": "system.dynos",
+          "source": "%",
+          "group_function": "breakout",
+          "summary_function": "max",
+          "position": 0,
+          "split_axis": false
+        },
+        {
+          "metric": "releases",
+          "source": "%",
+          "position": 1,
+          "split_axis": false
+        }
+      ]
+    },
+    {
+      "name": "Average Dynos",
+      "type": "bignumber",
+      "streams": [
+        {
+          "metric": "system.dynos",
+          "source": "%",
+          "group_function": "sum",
+          "summary_function": "average",
+          "position": 0,
+          "split_axis": false
+        }
+      ],
+      "use_last_value": false,
+      "thresholds": []
+    },
+    {
+      "name": "Max Dynos",
+      "type": "bignumber",
+      "streams": [
+        {
+          "metric": "system.dynos",
+          "source": "%",
+          "group_function": "sum",
+          "summary_function": "max",
+          "position": 0,
+          "split_axis": false
+        }
+      ],
+      "use_last_value": false,
+      "thresholds": []
+    },
+
+    {
+      "name": "Stacked Dyno 1m Load Average",
+      "type": "stacked",
+      "streams": [
+        {
+          "metric": "load_avg_1m",
+          "source": "%",
+          "group_function": "breakout",
+          "summary_function": "average",
+          "position": 0,
+          "split_axis": false
+        },
+        {
+          "metric": "load-avg-1m",
+          "source": "%",
+          "group_function": "breakout",
+          "summary_function": "average",
+          "position": 1,
+          "split_axis": false
+        }
+      ],
+      "min": 0
+    },
+    {
+      "name": "Average Load",
+      "type": "bignumber",
+      "streams": [
+        {
+          "metric": "load_avg_1m",
+          "source": "%",
+          "group_function": "sum",
+          "summary_function": "average",
+          "position": 0,
+          "split_axis": false
+        }
+      ],
+      "use_last_value": false,
+      "thresholds": []
+    },
+    {
+      "name": "Max Load",
+      "type": "bignumber",
+      "streams": [
+        {
+          "metric": "load_avg_1m",
+          "source": "%",
+          "group_function": "sum",
+          "summary_function": "max",
+          "position": 0,
+          "split_axis": false
+        }
+      ],
+      "use_last_value": false,
+      "thresholds": []
+    },
+
+    {
+      "name": "Stacked Dyno Memory",
+      "type": "stacked",
+      "streams": [
+        {
+          "metric": "memory_rss",
+          "source": "%",
+          "group_function": "breakout",
+          "summary_function": "max",
+          "min": 0,
+          "position": 0,
+          "split_axis": false
+        },
+        {
+          "metric": "memory-postgres",
+          "source": "%",
+          "group_function": "breakout",
+          "summary_function": "max",
+          "position": 2,
+          "split_axis": false
+        }
+      ]
+    },
+    {
+      "name": "Average Memory",
+      "type": "bignumber",
+      "streams": [
+        {
+          "metric": "memory_rss",
+          "source": "%",
+          "group_function": "sum",
+          "summary_function": "average",
+          "position": 0,
+          "split_axis": false
+        }
+      ],
+      "use_last_value": false,
+      "thresholds": []
+    },
+    {
+      "name": "Max Memory",
+      "type": "bignumber",
+      "streams": [
+        {
+          "metric": "memory_rss",
+          "source": "%",
+          "group_function": "sum",
+          "summary_function": "max",
+          "position": 0,
+          "split_axis": false
+        }
+      ],
+      "use_last_value": false,
+      "thresholds": []
+    },
+
+    {
+      "name": "Stacked Dyno Swap",
+      "type": "stacked",
+      "streams": [
+        {
+          "metric": "memory_swap",
+          "source": "%",
+          "group_function": "breakout",
+          "summary_function": "max",
+          "min": 0,
+          "position": 1,
+          "split_axis": false
+        }
+      ]
+    },
+    {
+      "name": "Average Swap",
+      "type": "bignumber",
+      "streams": [
+        {
+          "metric": "memory_swap",
+          "source": "%",
+          "group_function": "sum",
+          "summary_function": "average",
+          "position": 0,
+          "split_axis": false
+        }
+      ],
+      "use_last_value": false,
+      "thresholds": []
+    },
+    {
+      "name": "Max Swap",
+      "type": "bignumber",
+      "streams": [
+        {
+          "metric": "memory_swap",
+          "source": "%",
+          "group_function": "sum",
+          "summary_function": "max",
+          "position": 0,
+          "split_axis": false
+        }
+      ],
+      "use_last_value": false,
+      "thresholds": []
+    },
+
+    {
+      "name": "Max Single Load",
+      "type": "bignumber",
+      "streams": [
+        {
+          "metric": "load_avg_1m",
+          "source": "%",
+          "group_function": "max",
+          "summary_function": "max",
+          "position": 0,
+          "split_axis": false
+        }
+      ],
+      "use_last_value": false,
+      "thresholds": []
+    },
+    {
+      "name": "Max Single Memory",
+      "type": "bignumber",
+      "streams": [
+        {
+          "metric": "memory_rss",
+          "source": "%",
+          "group_function": "max",
+          "summary_function": "max",
+          "position": 0,
+          "split_axis": false
+        }
+      ],
+      "use_last_value": false,
+      "thresholds": []
+    },
+    {
+      "name": "Max Single Swap",
+      "type": "bignumber",
+      "streams": [
+        {
+          "metric": "memory_swap",
+          "source": "%",
+          "group_function": "max",
+          "summary_function": "max",
+          "position": 0,
+          "split_axis": false
+        }
+      ],
+      "use_last_value": false,
+      "thresholds": []
+    }
+  ]
+}

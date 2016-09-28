@@ -2,15 +2,13 @@
 'use strict'
 
 const _ = require('lodash/fp')
-const assert = require('assert')
 const co = require('co')
-const combinatorics = require('js-combinatorics')
 const fs = require('mz/fs')
 const path = require('path')
 const requireDir = require('require-dir')
 const winston = require('winston')
 
-const libratoApi = require('./index')
+const LibratoApi = require('./index').LibratoApi
 
 const logger = new winston.Logger({
   level: process.env.LIBRATO_LOG_LEVEL || process.env.LOG_LEVEL || 'info',
@@ -23,6 +21,7 @@ const logger = new winston.Logger({
     })
   ]
 })
+const libratoApi = new LibratoApi({ logger })
 
 const jsonStringify = json => JSON.stringify(json, undefined, 2) + '\n'
 
@@ -33,79 +32,9 @@ function writeFileOrFd (maybeSink) {
   return write.apply(fs, _.chain(arguments).drop(1).unshift(sink).value())
 }
 
-// sync IO
+// does sync IO
 function readConfigDir (path) {
   return requireDir(path, { recurse: true })
-}
-
-// Transforms config:
-// 1. simplify structure read from dir (flattens subdirs and creates predictable arrays)
-// 2. merge the __default__ metric with all other metrics and remove it
-// 3. apply template_values to metric name/display_name/composite properties and
-//    outdated metric names
-function processRawConfig (config) {
-  // support single objects or arrays in files in nested dirs, flatten to one level
-  const allFlat = _.flow(_.defaultTo([]), _.toArray, _.flatten)
-
-  const createTemplateValuePermutations = () => {
-    const keys = _.reverse(_.keys(config.template_values))
-    const values = _.reverse(_.values(config.template_values))
-    const vs = _.spread(combinatorics.cartesianProduct)(values).toArray()
-    const zipKeysToObj = _.flow(_.zip(keys), _.fromPairs)
-    return _.map(zipKeysToObj, vs)
-  }
-  const templateValuePermutations = createTemplateValuePermutations()
-  logger.debug({
-    template_values: config.template_values,
-    permutations: _.size(templateValuePermutations)
-  })
-  logger.silly({ templateValuePermutations })
-
-  // template factories, simple and lifted to obj properties
-  const createTemplate = source =>
-    // lodash/fp is missing the arity-2 template function, so we need to un-fix it to pass options
-    _.template.convert({fixed: false})(source, { interpolate: /{{([\s\S]+?)}}/g })
-  const createPropsTemplate = obj => pathes => {
-    const propValues = _.at(pathes, obj)
-    const propTemplates = _.map(t => t ? createTemplate(t) : null, propValues)
-    const evalPropTemplates = data => _.map(pt => pt ? pt(data) : null, propTemplates)
-    const pathesZipEvaled =
-      data => _.filter(x => x[1] !== null, _.zip(pathes, evalPropTemplates(data)))
-    const setPathEvaled = (acc, pe) => _.set(pe[0], pe[1], acc)
-    return data => _.reduce(setPathEvaled, obj, pathesZipEvaled(data))
-  }
-
-  // permutations in the sense of different template evaluations with templateValuePermutations
-  const templatePermutations = template =>
-    _.uniq(_.map(createTemplate(template), templateValuePermutations))
-  const templatesPermutations = _.flatMap(templatePermutations)
-  const permutationsOfObj = createObjTemplate => obj =>
-    _.uniqWith(_.isEqual, _.map(createObjTemplate(obj), templateValuePermutations))
-  const permutationsOfObjs = createObjTemplate => _.flatMap(permutationsOfObj(createObjTemplate))
-
-  // custom metrics processing
-  const applyDefaultMetric = metrics => {
-    // want ES6: const [[defaultMetric={}], rest] = _.partition(...)
-    const ps = _.partition(x => x.name === '__default__', metrics)
-    assert(ps[0].length <= 1, 'more than 1 __default__ metric')
-    const defaultMetric = ps[0][0] || {}
-    const rest = ps[1]
-    logger.debug({ defaultMetric })
-    return _.map(m => _.merge(defaultMetric, m), rest)
-  }
-  const createMetricTemplate = metric =>
-    createPropsTemplate(metric)(['name', 'display_name', 'composite'])
-  const processRawMetrics =
-    _.flow(allFlat, applyDefaultMetric, permutationsOfObjs(createMetricTemplate))
-
-  return {
-    metrics: processRawMetrics(config.metrics),
-    spaces: allFlat(config.spaces),
-    outdated: {
-      metrics: templatesPermutations(config.outdated.metrics),
-      spaces: config.outdated.spaces
-    }
-  }
 }
 
 // -- metric actions
@@ -164,7 +93,7 @@ function * deleteSpace (name) {
 function * showConfigDir (configDir, maybeSink) {
   const absConfigDir = path.join(process.cwd(), configDir)
   logger.verbose('reading config dir %s', absConfigDir)
-  const config = processRawConfig(readConfigDir(absConfigDir))
+  const config = libratoApi._processRawConfig(readConfigDir(absConfigDir))
   yield writeFileOrFd(maybeSink, jsonStringify(config))
 }
 
@@ -180,11 +109,13 @@ function * showRawConfigDir (configDir, maybeSink) {
  *  We could check this, alert, and provid an option to delete-and-recreate.
  *  But we don't know how the mentioned undocumented attributes are used, maybe they are
  *  informational only and we can ignore this.
+ * @TODO move the bulk of the logic here to LibratoAPI,
+ *  collect errors like in createOrUpdateSpace, and provide tests.
  */
 function * updateFromDir (configDir) {
   const absConfigDir = path.join(process.cwd(), configDir)
   logger.verbose('updating configuration from config dir %s', absConfigDir)
-  const config = processRawConfig(readConfigDir(absConfigDir))
+  const config = libratoApi._processRawConfig(readConfigDir(absConfigDir))
 
   var errorCount = 0
   const logOK = (what, id) => _result => {

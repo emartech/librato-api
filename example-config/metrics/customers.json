@@ -1,0 +1,22 @@
+[
+  {
+    "name": "customers.active",
+    "type": "gauge",
+    "period": 3600,
+    "source_lag": 900,
+    "attributes": {
+      "l2met_type": "sample",
+      "summarize_function": "max"
+    }
+  },
+  {
+    "name": "customers.number",
+    "type": "gauge",
+    "period": 3600,
+    "source_lag": 900,
+    "attributes": {
+      "l2met_type": "sample",
+      "summarize_function": "max"
+    }
+  }
+]
