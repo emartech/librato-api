@@ -151,10 +151,10 @@ class LibratoApi {
 
   /**
    * Update a space (change its name).
+   * @param space {{ name }} A space object with the new name.
    */
   putSpace (id, space, opts) {
-    const body = _.isString(space) ? { name: space } : space
-    return this.apiRequest(['spaces', id], put(body), opts)
+    return this.apiRequest(['spaces', id], put(space), opts)
   }
 
   /**
@@ -282,7 +282,7 @@ class LibratoApi {
 
     const succeed = _.constant(undefined)
     const getErrors = (op, chart) => err =>
-      ({ chart: (chart.name || chart.id), op, errors: err.error.errors })
+      ({ chart: chart.name, op, errors: err.error.errors })
     const collectErrs = (op, chartFn) => chart =>
       chartFn(chart).then(succeed).catch(getErrors(op, chart))
 

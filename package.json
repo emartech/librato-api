@@ -4,12 +4,12 @@
   "description": "A Librato backend API client library and a simple CLI tool.",
   "main": "index.js",
   "scripts": {
-    "prepublish": "npm run test && npm run eslint && npm run coverage && npm run coverage-check",
+    "prepublish": "npm test && npm run eslint && npm run coverage && npm run coverage-check",
     "test": "NODE_ENV=test TZ=utc mocha --require co-mocha *.spec.js",
     "test-watch": "npm run test -- --watch",
     "eslint": "eslint .",
     "coverage": "nyc npm test >/dev/null && nyc report -r html -r text",
-    "coverage-check": "nyc check-coverage --lines 100 --functions 100 --branches 95",
+    "coverage-check": "nyc check-coverage --lines 100 --functions 100 --branches 100",
     "coverage-open": "open coverage/index.html"
   },
   "bin": {

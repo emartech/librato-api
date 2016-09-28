@@ -56,8 +56,9 @@ describe('A test LibratoApi', () => {
 
   const stream1 = { name: 's1', id: 1011, type: 'gauge', source: '*' }
   const stream2 = { name: 's2', id: 1012, type: 'counter', source: '%' }
+  const stream3 = { name: 's2', id: 1012, type: 'composite', source: '%', composite: 'sum(s (...)', metric: { somthing: 1 } }
   const chart1 = { name: 'chart1', id: 101, streams: [stream1, stream2] }
-  const chart2 = { name: 'chart2', id: 102, streams: [stream2] }
+  const chart2 = { name: 'chart2', id: 102, streams: [stream2, stream3] }
   const space1 = {
     name: 'space1',
     charts: [
@@ -355,8 +356,18 @@ describe('A test LibratoApi', () => {
     expect(r).to.be.eql({
       name: 'space1',
       charts: [
-        { name: 'chart1', streams: [{ name: 's1', source: '*' }, { name: 's2', source: '%' }] },
-        { name: 'chart2', streams: [{ name: 's2', source: '%' }] }
+        { name: 'chart1',
+          streams: [
+            { name: 's1', source: '*' },
+            { name: 's2', source: '%' }
+          ]
+        },
+        { name: 'chart2',
+          streams: [
+            { name: 's2', source: '%' },
+            { name: 's2', source: '%', 'metric': { 'somthing': 1 } }
+          ]
+        }
       ]
     })
   })
