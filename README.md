@@ -54,4 +54,12 @@ You have to export LIBRATO_USER and LIBRATO_TOKEN for authentication to work.
 This tool is quite new and still a bit rough regarding command line parsing,
 integrated help, etc. To see what it's doing it may be helpful to set LOG_LEVEL to verbose or debug.
 
-TODO: Describe the tool's configuration-directory feature.
+### Configuration Directory Support
+
+Apart from functions which model single API calls, the tool can take a local directory
+containing json or js files in a certain structure and apply the contained metrics and spaces to
+a Librato account with the "update-from-dir" command. The repository contains an example directory
+"example-config".
+
+There's even some templating support to create serieses of similar metrics. The "show-config-dir"
+can be used to debug templating easily.
