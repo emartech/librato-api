@@ -2,16 +2,16 @@
 
 A Librato backend API client library and a simple CLI tool.
 
-Note this intended to manage your Librato backend configuration,
-but not to submit stats. There's already a multitude of other packages doing that.
+This package allows you to manage your Librato backend configuration,
+but not to submit stats. There are other packages doing that.
 
-This can also be used to query metrics by supplying start\_time, end\_time, and other optional
-parameters.
+It can also be used to query metrics time series values by supplying
+start\_time, end\_time, and other optional parameters to #getMetric.
 
 For a full description of the Librato API see the official
-[Librato API](https://www.librato.com/docs/api/).
+[Librato API](https://www.librato.com/docs/api/) documentation.
 
-# Examples
+## Examples
 
     // uses LIBRATO_USER and LIBRATO_TOKEN in the process'es environment
     const libratoApi = require('librato-api')
@@ -37,7 +37,7 @@ For a full description of the Librato API see the official
     // not everything is explicitly supported yet, but you can do generic requests like this
     libratoApi.apiRequest(['alerts', 123], { name: 'myalert', ... }, { method: 'PUT' })
 
-# CLI Tool
+## CLI Tool
 
 This package installs a CLI tool named "librato" into your global or package bin-dir.
 
