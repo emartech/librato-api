@@ -11,7 +11,7 @@
     "coverage": "nyc npm test >/dev/null && nyc report -r text -r lcov",
     "coverage-check": "nyc check-coverage --lines 100 --functions 100 --branches 100",
     "coverage-open": "open coverage/lcov-report/index.html",
-    "coverage-coverall": "coverall < coverage/lcov.info"
+    "coverage-coveralls": "coveralls < coverage/lcov.info"
   },
   "bin": {
     "librato": "./librato.js"
