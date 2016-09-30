@@ -1,10 +1,10 @@
 # librato-api
 
 [![npm version](http://img.shields.io/npm/v/librato-api.svg)](https://npmjs.org/package/librato-api)
-[![Build Status](https://travis-ci.org/tgriesser/librato-api.svg?branch=master)](https://travis-ci.org/tgriesser/librato-api)
+[![Build Status](https://travis-ci.org/emartech/librato-api.svg?branch=master)](https://travis-ci.org/emartech/librato-api)
 <!--
-[![Coverage Status](https://coveralls.io/repos/tgriesser/librato-api/badge.svg?branch=master)](https://coveralls.io/r/tgriesser/librato-api?branch=master)
-[![Dependencies Status](https://david-dm.org/tgriesser/librato-api.svg)](https://david-dm.org/tgriesser/librato-api)
+[![Coverage Status](https://coveralls.io/repos/emartech/librato-api/badge.svg?branch=master)](https://coveralls.io/r/emartech/librato-api?branch=master)
+[![Dependencies Status](https://david-dm.org/emartech/librato-api.svg)](https://david-dm.org/emartech/librato-api)
 -->
 
 A Librato backend API client library and a simple CLI tool.
