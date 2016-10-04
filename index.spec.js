@@ -2,6 +2,9 @@
 
 const _ = require('lodash/fp')
 const request = require('request-promise')
+const requireDir = require('require-dir')
+const winston = require('winston')
+
 const sinonGlobal = require('sinon')
 const chai = require('chai')
 chai.use(require('sinon-chai'))
@@ -22,18 +25,22 @@ describe('A default LibratoApi', () => {
     return librato
   }
 
-  const librato = createInstanceWithTestEnv()
+  const libratoApi = createInstanceWithTestEnv()
 
   it('should use the public Librato REST URL', function * () {
-    expect(librato.serviceUrl).to.equal('https://metrics-api.librato.com/v1')
+    expect(libratoApi.serviceUrl).to.equal('https://metrics-api.librato.com/v1')
   })
 
   it('should use auth credentials from environment', function * () {
-    expect(librato.auth).to.deep.equal({ user: 'testuser', pass: 'testtoken' })
+    expect(libratoApi.auth).to.deep.equal({ user: 'testuser', pass: 'testtoken' })
   })
 
   it('should use the default request-promise', function * () {
-    expect(librato.request).to.equal(request)
+    expect(libratoApi.request).to.equal(request)
+  })
+
+  it('should log to winston root logger', function * () {
+    expect(libratoApi.logger).to.equal(winston)
   })
 })
 
@@ -43,21 +50,16 @@ describe('The librato-client package itself', () => {
     expect(LibratoApi).to.have.a.property('auth')
     expect(LibratoApi).to.have.a.property('request', request)
     expect(LibratoApi).to.have.a.property('serviceUrl', 'https://metrics-api.librato.com/v1')
+    expect(LibratoApi).to.have.a.property('logger', winston)
   })
 })
 
 describe('A test LibratoApi', () => {
-  const librato = new LibratoApi.LibratoApi({
-    serviceUrl: 'http://url/v1',
-    auth: { user: 'testuser', pass: 'testtoken' },
-    // reflect back request options in the result
-    request: function () { return Promise.resolve(arguments) }
-  })
-
   const stream1 = { name: 's1', id: 1011, type: 'gauge', source: '*' }
   const stream2 = { name: 's2', id: 1012, type: 'counter', source: '%' }
+  const stream3 = { name: 's2', id: 1012, type: 'composite', source: '%', composite: 'sum(s (...)', metric: { somthing: 1 } }
   const chart1 = { name: 'chart1', id: 101, streams: [stream1, stream2] }
-  const chart2 = { name: 'chart2', id: 102, streams: [stream2] }
+  const chart2 = { name: 'chart2', id: 102, streams: [stream2, stream3] }
   const space1 = {
     name: 'space1',
     charts: [
@@ -87,24 +89,78 @@ describe('A test LibratoApi', () => {
       { name: 'chart1', streams: [{ name: 's2', source: '%' }] }
     ]
   }
+  const exampleConfig = requireDir('./example-config', { recurse: true })
+  const processedExampleConfig = require('./example-config-processed')
 
-  let sinon
+  let sinon, libratoApi
   beforeEach(function * () {
     sinon = sinonGlobal.sandbox.create()
+    libratoApi = new LibratoApi.LibratoApi({
+      serviceUrl: 'http://url/v1',
+      auth: { user: 'testuser', pass: 'testtoken' },
+      // reflect back request options in the result, maybe we should use sinon instead
+      request: function () { return Promise.resolve(Array.from(arguments)) },
+      logger: sinon.stub(new (winston.Logger)())
+    })
   })
   afterEach(function * () {
     sinon.restore()
   })
 
-  it('should do an arbitrary API request', function * () {
-    const r = yield librato.apiRequest(['foo', 123, 'bar', 456], { qs: { x: 'y' } })
-    expect(r).to.have.length(1)
-    expect(r[0]).to.deep.equal({
+  it('should do an arbitrary API request with logging', function * () {
+    const path = ['foo', 123, 'bar', 456]
+    const options = { qs: { x: 'y' } }
+    const expectedRequest = [{
       auth: { user: 'testuser', pass: 'testtoken' },
       json: true,
       qs: { x: 'y' },
       url: 'http://url/v1/foo/123/bar/456'
-    })
+    }]
+
+    const r = yield libratoApi.apiRequest(path, options)
+
+    expect(r).to.have.length(1)
+    expect(r).to.deep.equal(expectedRequest)
+
+    expect(libratoApi.logger.debug).to.have.been.calledOnce
+    const log1 = libratoApi.logger.debug.firstCall.args
+    const requestId = log1[1].requestId
+    expect(requestId).to.match(/^[0-9a-f-]*$/i)
+    expect(log1).to.deep.equal([
+      'LibratoAPI#apiRequest',
+      { path, opts: options, opts2: undefined, requestId }
+    ])
+
+    expect(libratoApi.logger.silly).to.have.been.calledOnce
+    const log2 = libratoApi.logger.silly.firstCall.args
+    expect(log2).to.include.deep.equal([
+      'LibratoAPI#apiRequest result',
+      { requestId, result: expectedRequest }
+    ])
+  })
+
+  it('should fail an API request with logging', function * () {
+    const path = ['foo', 123]
+    const error = new Error('something happened')
+    libratoApi.request = () => Promise.reject(error)
+
+    yield expect(libratoApi.apiRequest(path)).to.eventually.be.rejectedWith(error)
+
+    expect(libratoApi.logger.debug).to.have.been.calledOnce
+    const log1 = libratoApi.logger.debug.firstCall.args
+    const requestId = log1[1].requestId
+    expect(requestId).to.match(/^[0-9a-f-]*$/i)
+    expect(log1).to.deep.equal([
+      'LibratoAPI#apiRequest',
+      { path, opts: undefined, opts2: undefined, requestId }
+    ])
+
+    expect(libratoApi.logger.silly).to.have.been.calledOnce
+    const log2 = libratoApi.logger.silly.firstCall.args
+    expect(log2).to.include.deep.equal([
+      'LibratoAPI#apiRequest error',
+      { error, requestId }
+    ])
   })
 
   it('should iterate and aggregate over paginated results', function * () {
@@ -121,22 +177,22 @@ describe('A test LibratoApi', () => {
       .returns(Promise.resolve({ query: { offset: 6, length: 2, found: 8 }, xs: [7, 8] }))
     getXs.resultPath = 'xs'
 
-    const result = yield librato.getAllPaginated(getXs, opts1)
+    const result = yield libratoApi.getAllPaginated(getXs, opts1)
 
     expect(result).to.eql([1, 2, 3, 4, 5, 6, 7, 8])
     expect(getXs)
       .to.have.been.calledThrice
-      .and.to.have.always.been.calledOn(librato)
+      .and.to.have.always.been.calledOn(libratoApi)
   })
 
   it('should assert valid paginated getter on call', function * () {
     const getXs = sinon.stub()
     // this really is asserted before a Promise is built, because it violates the call contract
-    expect(() => librato.getAllPaginated(getXs)).to.throw('invalid paginatedGetter')
+    expect(() => libratoApi.getAllPaginated(getXs)).to.throw('invalid paginatedGetter')
   })
 
   it('should get metrics', function * () {
-    const r = yield librato.getMetrics()
+    const r = yield libratoApi.getMetrics()
     expect(r).to.have.length(1)
     expect(r[0]).to.deep.equal({
       auth: { user: 'testuser', pass: 'testtoken' },
@@ -146,7 +202,7 @@ describe('A test LibratoApi', () => {
   })
 
   it('should get metric definitions with pagination params', function * () {
-    const r = yield librato.getMetrics({ qs: { offset: 200, length: 50 } })
+    const r = yield libratoApi.getMetrics({ qs: { offset: 200, length: 50 } })
     expect(r).to.have.length(1)
     expect(r[0]).to.deep.equal({
       auth: { user: 'testuser', pass: 'testtoken' },
@@ -157,11 +213,11 @@ describe('A test LibratoApi', () => {
   })
 
   it('should support getAllPaginated for getMetrics', function * () {
-    expect(librato.getMetrics).to.have.property('resultPath', 'metrics')
+    expect(libratoApi.getMetrics).to.have.property('resultPath', 'metrics')
   })
 
   it('should get a single metric definition', function * () {
-    const r = yield librato.getMetric('test.metric')
+    const r = yield libratoApi.getMetric('test.metric')
     expect(r).to.have.length(1)
     expect(r[0]).to.deep.equal({
       auth: { user: 'testuser', pass: 'testtoken' },
@@ -171,7 +227,7 @@ describe('A test LibratoApi', () => {
   })
 
   it('should put a metric definition', function * () {
-    const r = yield librato.putMetric(
+    const r = yield libratoApi.putMetric(
       'test.metric',
       { type: 'composite', composite: 'sum([A, B])' }
     )
@@ -186,7 +242,7 @@ describe('A test LibratoApi', () => {
   })
 
   it('should delete a metric', function * () {
-    const r = yield librato.deleteMetric('test.metric')
+    const r = yield libratoApi.deleteMetric('test.metric')
     expect(r).to.have.length(1)
     expect(r[0]).to.deep.equal({
       auth: { user: 'testuser', pass: 'testtoken' },
@@ -197,7 +253,7 @@ describe('A test LibratoApi', () => {
   })
 
   it('should get spaces', function * () {
-    const r = yield librato.getSpaces()
+    const r = yield libratoApi.getSpaces()
     expect(r).to.have.length(1)
     expect(r[0]).to.deep.equal({
       auth: { user: 'testuser', pass: 'testtoken' },
@@ -207,11 +263,11 @@ describe('A test LibratoApi', () => {
   })
 
   it('should support getAllPaginated for getSpaces', function * () {
-    expect(librato.getSpaces).to.have.property('resultPath', 'spaces')
+    expect(libratoApi.getSpaces).to.have.property('resultPath', 'spaces')
   })
 
   it('should get a single space definition', function * () {
-    const r = yield librato.getSpace(12345)
+    const r = yield libratoApi.getSpace(12345)
     expect(r).to.have.length(1)
     expect(r[0]).to.deep.equal({
       auth: { user: 'testuser', pass: 'testtoken' },
@@ -221,7 +277,7 @@ describe('A test LibratoApi', () => {
   })
 
   it('should post a new space definition', function * () {
-    const r = yield librato.postSpace({ name: 'Test Space 1' })
+    const r = yield libratoApi.postSpace({ name: 'Test Space 1' })
     expect(r).to.have.length(1)
     expect(r[0]).to.deep.equal({
       auth: { user: 'testuser', pass: 'testtoken' },
@@ -233,7 +289,7 @@ describe('A test LibratoApi', () => {
   })
 
   it('should post a new space with name only', function * () {
-    const r = yield librato.postSpace('Test Space 1')
+    const r = yield libratoApi.postSpace('Test Space 1')
     expect(r).to.have.length(1)
     expect(r[0]).to.deep.equal({
       auth: { user: 'testuser', pass: 'testtoken' },
@@ -245,7 +301,7 @@ describe('A test LibratoApi', () => {
   })
 
   it('should put a space definition', function * () {
-    const r = yield librato.putSpace(12345, { name: 'Test Space 1a' })
+    const r = yield libratoApi.putSpace(12345, { name: 'Test Space 1a' })
     expect(r).to.have.length(1)
     expect(r[0]).to.deep.equal({
       auth: { user: 'testuser', pass: 'testtoken' },
@@ -257,7 +313,7 @@ describe('A test LibratoApi', () => {
   })
 
   it('should delete a space', function * () {
-    const r = yield librato.deleteSpace(12345)
+    const r = yield libratoApi.deleteSpace(12345)
     expect(r).to.have.length(1)
     expect(r[0]).to.deep.equal({
       auth: { user: 'testuser', pass: 'testtoken' },
@@ -268,7 +324,7 @@ describe('A test LibratoApi', () => {
   })
 
   it('should get charts of a space', function * () {
-    const r = yield librato.getCharts(123)
+    const r = yield libratoApi.getCharts(123)
     expect(r).to.have.length(1)
     expect(r[0]).to.deep.equal({
       auth: { user: 'testuser', pass: 'testtoken' },
@@ -278,11 +334,11 @@ describe('A test LibratoApi', () => {
   })
 
   it('should not allow getAllPaginated for getCharts', function * () {
-    expect(librato.getCharts).to.not.have.property('resultPath')
+    expect(libratoApi.getCharts).to.not.have.property('resultPath')
   })
 
   it('should get a single chart definition', function * () {
-    const r = yield librato.getChart(123, 456)
+    const r = yield libratoApi.getChart(123, 456)
     expect(r).to.have.length(1)
     expect(r[0]).to.deep.equal({
       auth: { user: 'testuser', pass: 'testtoken' },
@@ -292,7 +348,7 @@ describe('A test LibratoApi', () => {
   })
 
   it('should post a new chart definition', function * () {
-    const r = yield librato.postChart(123, { name: 'C1', x: 'y' })
+    const r = yield libratoApi.postChart(123, { name: 'C1', x: 'y' })
     expect(r).to.have.length(1)
     expect(r[0]).to.deep.equal({
       auth: { user: 'testuser', pass: 'testtoken' },
@@ -304,7 +360,7 @@ describe('A test LibratoApi', () => {
   })
 
   it('should put a chart definition', function * () {
-    const r = yield librato.putChart(123, 456, { name: 'C2' })
+    const r = yield libratoApi.putChart(123, 456, { name: 'C2' })
     expect(r).to.have.length(1)
     expect(r[0]).to.deep.equal({
       auth: { user: 'testuser', pass: 'testtoken' },
@@ -316,7 +372,7 @@ describe('A test LibratoApi', () => {
   })
 
   it('should delete a chart', function * () {
-    const r = yield librato.deleteChart(123, 456)
+    const r = yield libratoApi.deleteChart(123, 456)
     expect(r).to.have.length(1)
     expect(r[0]).to.deep.equal({
       auth: { user: 'testuser', pass: 'testtoken' },
@@ -327,60 +383,70 @@ describe('A test LibratoApi', () => {
   })
 
   it('should find a space by exact name', function * () {
-    sinon.stub(librato, 'getAllPaginated')
-      .withArgs(librato.getSpaces, { qs: { name: 'Test' } })
+    sinon.stub(libratoApi, 'getAllPaginated')
+      .withArgs(libratoApi.getSpaces, { qs: { name: 'Test' } })
       .returns(Promise.resolve([{ name: 'Test Space' }, { name: 'Test' }]))
-    const r = yield librato.findSpaceByName('Test')
+    const r = yield libratoApi.findSpaceByName('Test')
     expect(r).to.be.eql({ name: 'Test' })
   })
 
   it('should fail to find a space', function * () {
-    sinon.stub(librato, 'getAllPaginated')
-      .withArgs(librato.getSpaces, { qs: { name: 'Test Space 2' } })
+    sinon.stub(libratoApi, 'getAllPaginated')
+      .withArgs(libratoApi.getSpaces, { qs: { name: 'Test Space 2' } })
       .returns(Promise.resolve([{ name: 'Test Space' }, { name: 'Test' }]))
-    yield expect(librato.dumpSpace('Test Space 2'))
+    yield expect(libratoApi.dumpSpace('Test Space 2'))
       .to.eventually.be.rejectedWith('no space named Test Space 2')
   })
 
   it('should dump a space with charts', function * () {
-    sinon.stub(librato, 'findSpaceByName')
+    sinon.stub(libratoApi, 'findSpaceByName')
       .withArgs('space1')
       .returns(Promise.resolve({ name: 'space1', id: 333 }))
-    sinon.stub(librato, 'getCharts')
+    sinon.stub(libratoApi, 'getCharts')
       .withArgs(333)
       .returns(Promise.resolve([chart1, chart2]))
 
-    const r = yield librato.dumpSpace('space1')
+    const r = yield libratoApi.dumpSpace('space1')
 
     expect(r).to.be.eql({
       name: 'space1',
       charts: [
-        { name: 'chart1', streams: [{ name: 's1', source: '*' }, { name: 's2', source: '%' }] },
-        { name: 'chart2', streams: [{ name: 's2', source: '%' }] }
+        { name: 'chart1',
+          streams: [
+            { name: 's1', source: '*' },
+            { name: 's2', source: '%' }
+          ]
+        },
+        { name: 'chart2',
+          streams: [
+            { name: 's2', source: '%' },
+            { name: 's2', source: '%', 'metric': { 'somthing': 1 } }
+          ]
+        }
       ]
     })
   })
 
   it('should fail to dump a space', function * () {
-    sinon.stub(librato, 'findSpaceByName')
+    sinon.stub(libratoApi, 'findSpaceByName')
       .withArgs('space1')
       .returns(Promise.reject(new Error('no space named space1')))
-    yield expect(librato.dumpSpace('space1'))
+    yield expect(libratoApi.dumpSpace('space1'))
       .to.eventually.be.rejectedWith('no space named space1')
   })
 
   it('should create a space with charts', function * () {
-    sinon.stub(librato, 'findSpaceByName')
+    sinon.stub(libratoApi, 'findSpaceByName')
       .withArgs('space1')
       .returns(Promise.resolve(undefined))
-    sinon.stub(librato, 'postSpace')
+    sinon.stub(libratoApi, 'postSpace')
       .withArgs({ name: 'space1' })
       .returns(Promise.resolve({ name: 'space1', id: 333 }))
-    const postSpy = sinon.spy(librato, 'postChart')
-    const putSpy = sinon.spy(librato, 'putChart')
-    const deleteSpy = sinon.spy(librato, 'deleteChart')
+    const postSpy = sinon.spy(libratoApi, 'postChart')
+    const putSpy = sinon.spy(libratoApi, 'putChart')
+    const deleteSpy = sinon.spy(libratoApi, 'deleteChart')
 
-    yield librato.createOrUpdateSpace(space1)
+    yield libratoApi.createOrUpdateSpace(space1)
 
     expect(postSpy).to.have.been.calledTwice
       .and.calledWithExactly(333, space1.charts[0])
@@ -390,17 +456,17 @@ describe('A test LibratoApi', () => {
   })
 
   it('should update a space with charts', function * () {
-    sinon.stub(librato, 'findSpaceByName')
+    sinon.stub(libratoApi, 'findSpaceByName')
       .withArgs('space1')
       .returns(Promise.resolve({ name: 'space1', id: 333 }))
-    sinon.stub(librato, 'getCharts')
+    sinon.stub(libratoApi, 'getCharts')
       .withArgs(333)
       .returns(Promise.resolve([chart1, chart2]))
-    const postSpy = sinon.spy(librato, 'postChart')
-    const putSpy = sinon.spy(librato, 'putChart')
-    const deleteSpy = sinon.spy(librato, 'deleteChart')
+    const postSpy = sinon.spy(libratoApi, 'postChart')
+    const putSpy = sinon.spy(libratoApi, 'putChart')
+    const deleteSpy = sinon.spy(libratoApi, 'deleteChart')
 
-    yield librato.createOrUpdateSpace(space1a)
+    yield libratoApi.createOrUpdateSpace(space1a)
 
     expect(postSpy).to.have.been.calledOnce
       .and.calledWithExactly(333, space1a.charts[1])
@@ -411,17 +477,17 @@ describe('A test LibratoApi', () => {
   })
 
   it('should fail to update space with empty chart names', function * () {
-    sinon.stub(librato, 'findSpaceByName')
+    sinon.stub(libratoApi, 'findSpaceByName')
       .withArgs('space1')
       .returns(Promise.resolve({ name: 'space1', id: 333 }))
-    sinon.stub(librato, 'getCharts')
+    sinon.stub(libratoApi, 'getCharts')
       .withArgs(333)
       .returns(Promise.resolve([chart1, chart2]))
-    const postSpy = sinon.spy(librato, 'postChart')
-    const putSpy = sinon.spy(librato, 'putChart')
-    const deleteSpy = sinon.spy(librato, 'deleteChart')
+    const postSpy = sinon.spy(libratoApi, 'postChart')
+    const putSpy = sinon.spy(libratoApi, 'putChart')
+    const deleteSpy = sinon.spy(libratoApi, 'deleteChart')
 
-    yield expect(librato.createOrUpdateSpace(space1b))
+    yield expect(libratoApi.createOrUpdateSpace(space1b))
       .to.eventually.be.rejectedWith('empty chart name in space space1')
 
     expect(postSpy).to.not.have.been.called
@@ -430,17 +496,17 @@ describe('A test LibratoApi', () => {
   })
 
   it('should fail to update a space with duplicate chart names', function * () {
-    sinon.stub(librato, 'findSpaceByName')
+    sinon.stub(libratoApi, 'findSpaceByName')
       .withArgs('space1')
       .returns(Promise.resolve({ name: 'space1', id: 333 }))
-    sinon.stub(librato, 'getCharts')
+    sinon.stub(libratoApi, 'getCharts')
       .withArgs(333)
       .returns(Promise.resolve([chart1, chart2]))
-    const postSpy = sinon.spy(librato, 'postChart')
-    const putSpy = sinon.spy(librato, 'putChart')
-    const deleteSpy = sinon.spy(librato, 'deleteChart')
+    const postSpy = sinon.spy(libratoApi, 'postChart')
+    const putSpy = sinon.spy(libratoApi, 'putChart')
+    const deleteSpy = sinon.spy(libratoApi, 'deleteChart')
 
-    yield expect(librato.createOrUpdateSpace(space1c))
+    yield expect(libratoApi.createOrUpdateSpace(space1c))
       .to.eventually.be.rejectedWith('duplicate chart names in space space1')
 
     expect(postSpy).to.not.have.been.called
@@ -454,20 +520,20 @@ describe('A test LibratoApi', () => {
       err.error = { errors }
       return err
     }
-    sinon.stub(librato, 'findSpaceByName')
+    sinon.stub(libratoApi, 'findSpaceByName')
       .withArgs('space1')
       .returns(Promise.resolve({ name: 'space1', id: 333 }))
-    sinon.stub(librato, 'getCharts')
+    sinon.stub(libratoApi, 'getCharts')
       .withArgs(333)
       .returns(Promise.resolve([chart1, chart2]))
-    sinon.stub(librato, 'postChart')
+    sinon.stub(libratoApi, 'postChart')
       .returns(Promise.reject(chartErr(['bad post params'])))
-    sinon.stub(librato, 'putChart')
+    sinon.stub(libratoApi, 'putChart')
       .returns(Promise.reject(chartErr(['bad put params'])))
-    sinon.stub(librato, 'deleteChart')
+    sinon.stub(libratoApi, 'deleteChart')
       .returns(Promise.reject(chartErr(['bad delete params'])))
 
-    const p = librato.createOrUpdateSpace(space1a)
+    const p = libratoApi.createOrUpdateSpace(space1a)
     yield expect(p).to.eventually.be.rejectedWith('some chart operations failed in space space1')
     yield p.catch(err => {
       expect(err).to.have.deep.property('error.errors').which.eql([
@@ -476,6 +542,19 @@ describe('A test LibratoApi', () => {
         { chart: 'chart3', op: 'create', errors: ['bad post params'] }
       ])
     })
+  })
+
+  it('should process empty raw config', function * () {
+    const rawConfig = { }
+    const config = libratoApi._processRawConfig(rawConfig)
+    expect(config).to.deep.equal(
+      { metrics: [], spaces: [], outdated: { metrics: [], spaces: [] } }
+    )
+  })
+
+  it('should process raw example config', function * () {
+    const config = libratoApi._processRawConfig(exampleConfig)
+    expect(config).to.deep.equal(processedExampleConfig)
   })
 })
 

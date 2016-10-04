@@ -1,0 +1,21 @@
+{
+  "name": "__default__",
+  "display_name": null,
+  "description": null,
+  "type": null,
+  "period": 60,
+  "source_lag": null,
+  "attributes": {
+    "l2met_type": null,
+    "display_units_short": null,
+    "display_units_long": null,
+    "display_transform": null,
+    "display_stacked": null,
+    "display_min": 0,
+    "display_max": null,
+    "gap_detection": true,
+    "summarize_function": null,
+    "aggregate": true,
+    "created_by_ua": "librato-api"
+  }
+}
