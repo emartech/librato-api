@@ -25,11 +25,10 @@ const libratoApi = new LibratoApi({ logger })
 
 const jsonStringify = json => JSON.stringify(json, undefined, 2) + '\n'
 
-function writeFileOrFd (maybeSink) {
-  const sink = maybeSink || process.stdout.fd
-  const write = _.isString(sink) ? fs.writeFile : fs.write
-  // return write(sink, ...arguments[1..])
-  return write.apply(fs, _.chain(arguments).drop(1).unshift(sink).value())
+function * writeFileOrFd (maybeSink, data) {
+  return _.isString(maybeSink)
+    ? yield fs.writeFile(maybeSink, data)
+    : process.stdout.write(data)
 }
 
 // does sync IO
