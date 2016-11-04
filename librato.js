@@ -124,7 +124,8 @@ function * updateFromDir (configDir) {
     errorCount += 1
     logger.error('%s %s failed', what, id, {
       [what]: id,
-      errors: err.error.errors
+      msg: err.toString(),
+      errors: _.get('error.errors', err)
     })
   }
   const ignore404 = err => {
