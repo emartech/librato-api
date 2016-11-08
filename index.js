@@ -9,20 +9,17 @@ const StatusCodeError = require('request-promise/errors').StatusCodeError
 const uuid = require('uuid')
 const winston = require('winston')
 
-const _build = method => body => ({ method, body })
-const post = _build('POST')
-const put = _build('PUT')
+const post = body => ({ method: 'POST', body })
+const put = body => ({ method: 'PUT', body })
 const del = { method: 'DELETE' }
-const noSuch = _.curry((what, name) => {
-  throw new StatusCodeError(404, `no ${what} named ${name}`)
-})
-const noSuchOrObj = _.curry((what, name, obj) => _.isUndefined(obj) ? noSuch(what, name) : obj)
+const noSuch = (what, name) => { throw new StatusCodeError(404, `no ${what} named ${name}`) }
+const resultOrNoSuch = _.curry((what, name, obj) => _.isUndefined(obj) ? noSuch(what, name) : obj)
 
 /**
  * An API client for the Librato (management) API.
  *
  * Unless overridden by options this will pick up LIBRATO_USER and LIBRATO_TOKEN from
- * the process environment (works out of the box on Heroku).
+ * the process environment (this works out of the box on Heroku).
  *
  * @param options {object} A plain object, which allows to override the following properties:
  *   - serviceUrl (String): the base of the service URL
@@ -46,15 +43,17 @@ class LibratoApi {
     this.logger = o.logger || winston.loggers.LibratoApi || winston
   }
 
+  // *** straight API calls ***
+
   /**
    * Do a single API request and return the result from the underlying request-promise.
    *
    * All items of the path array are appended to this.serviceUrl, this.auth is inserted
    * into the request object, and both opts and opts2 are merged into the request object.
    *
-   * Returns a promise as created by request-promise. Most other methods call this one
+   * Returns a promise as created by request-promise. Many other methods call this one
    * eventually and return its result directly, so you should expect to get the errors,
-   * result wrappers for pagination and job monitors as described in the API.
+   * result wrappers for pagination and job monitors as described in the Librato API.
    *
    * The underlying request-promise and the given options may change several aspects of
    * this method, e.g. via resolveWithFullResponse: true or simple: false.
@@ -85,28 +84,7 @@ class LibratoApi {
     return this.request(options).then(logResult).catch(logErrorRethrow)
   }
 
-  /**
-   * This convenience method steps through paginated results by repeatedly
-   * calling this.paginatedGetter(opts) with increasing offsets and concatenates all
-   * parts into an array (in a Promise).
-   * The caller is responsible for passing valid parameters not messing with this process,
-   * but notable may use all pagination options except "offset".
-   */
-  getAllPaginated (paginatedGetter, opts) {
-    assert(paginatedGetter.resultPath, 'invalid paginatedGetter')
-    const getPage = paginatedGetter.bind(this)
-    const unwrapPage = _.get(paginatedGetter.resultPath)
-    const optsWithOffset = offset => _.merge(opts, { qs: { offset } })
-    const getNextPart = (acc, offset) =>
-      getPage(optsWithOffset(offset)).then(resultOrContinue(acc))
-    const resultOrContinue = acc => page => {
-      const newAcc = _.concat(acc, unwrapPage(page))
-      const nextOffset = page.query.offset + page.query.length
-      const isLastPage = nextOffset >= page.query.found
-      return isLastPage ? newAcc : getNextPart(newAcc, nextOffset)
-    }
-    return getNextPart([], 0)
-  }
+  // single direct API calls
 
   /**
    * Get metrics.
@@ -157,11 +135,10 @@ class LibratoApi {
 
   /**
    * Post a new space.
-   * If successful this returns an object with the id to be used with get and delete requests,
-   * unlike metrics which are always referenced by name.
-   * @param space request object, or as shortcut a String containing the new space's name.
+   * @param space request object.
    */
   postSpace (space, opts) {
+    // too much magic, remove string handling next major version
     const body = _.isString(space) ? { name: space } : space
     return this.apiRequest(['spaces'], post(body), opts)
   }
@@ -217,29 +194,206 @@ class LibratoApi {
     return this.apiRequest(['spaces', spaceId, 'charts', id], del, opts)
   }
 
-  // "complex" operations doing more than a simple API call
+  /**
+   * Get alerts (paginated).
+   */
+  getAlerts (opts) {
+    return this.apiRequest(['alerts'], opts)
+  }
+
+  /**
+   * Get status of alerts.
+   */
+  getAlertsStatus (opts) {
+    return this.apiRequest(['alerts', 'status'], opts)
+  }
+
+  /**
+   * Get details of a single alert by id.
+   */
+  getAlert (id, opts) {
+    return this.apiRequest(['alerts', id], opts)
+  }
+
+  /**
+   * Post a new alert.
+   * @param alert request object.
+   */
+  postAlert (alert, opts) {
+    return this.apiRequest(['alerts'], post(alert), opts)
+  }
+
+  /**
+   * Update an alert.
+   * @param alert request object.
+   */
+  putAlert (id, alert, opts) {
+    return this.apiRequest(['alerts', id], put(alert), opts)
+  }
+
+  /**
+   * Delete a single alert by id.
+   */
+  deleteAlert (id, opts) {
+    return this.apiRequest(['alerts', id], del, opts)
+  }
+
+  /**
+   * Get services (paginated).
+   */
+  getServices (opts) {
+    return this.apiRequest(['services'], opts)
+  }
+
+  /**
+   * Get details of a single service by id.
+   */
+  getService (id, opts) {
+    return this.apiRequest(['services', id], opts)
+  }
+
+  /**
+   * Post a new service.
+   * @param service request object.
+   */
+  postService (service, opts) {
+    return this.apiRequest(['services'], post(service), opts)
+  }
+
+  /**
+   * Update a service.
+   * @param service request object.
+   */
+  putService (id, service, opts) {
+    return this.apiRequest(['services', id], put(service), opts)
+  }
+
+  /**
+   * Delete a single service by id.
+   */
+  deleteService (id, opts) {
+    return this.apiRequest(['services', id], del, opts)
+  }
+
+  /**
+   * Get sources (paginated).
+   */
+  getSources (opts) {
+    return this.apiRequest(['sources'], opts)
+  }
+
+  /**
+   * Get details of a single source by name.
+   */
+  getSource (name, opts) {
+    return this.apiRequest(['sources', name], opts)
+  }
+
+  /**
+   * Create or update a source.
+   * @param params request object.
+   */
+  putSource (name, params, opts) {
+    return this.apiRequest(['sources', name], put(params), opts)
+  }
+
+  /**
+   * Delete a single source by name.
+   */
+  deleteSource (name, opts) {
+    return this.apiRequest(['sources', name], del, opts)
+  }
+
+  // *** pagination iteration helpers ***
+
+  /**
+   * This convenience method steps through paginated results by repeatedly
+   * calling this.paginatedGetter(opts) with increasing offsets and concatenates all
+   * parts into an array (in a Promise).
+   * The caller is responsible for passing valid parameters not messing with this process,
+   * but notable may use all pagination options except "offset".
+   */
+  getAllPaginated (paginatedGetter, opts) {
+    assert(paginatedGetter.resultPath, 'invalid paginatedGetter')
+    const getPage = paginatedGetter.bind(this)
+    const unwrapPage = _.get(paginatedGetter.resultPath)
+    const optsWithOffset = offset => _.merge(opts, { qs: { offset } })
+    const getNextPart = (acc, offset) =>
+      getPage(optsWithOffset(offset)).then(resultOrContinue(acc))
+    const resultOrContinue = acc => page => {
+      const newAcc = _.concat(acc, unwrapPage(page))
+      const nextOffset = page.query.offset + page.query.length
+      const isLastPage = nextOffset >= page.query.found
+      return isLastPage ? newAcc : getNextPart(newAcc, nextOffset)
+    }
+    return getNextPart([], 0)
+  }
+
+  getAllMetrics (opts) {
+    return this.getAllPaginated(this.getMetrics, opts)
+  }
+
+  getAllSpaces (opts) {
+    return this.getAllPaginated(this.getSpaces, opts)
+  }
+
+  getAllAlerts (opts) {
+    return this.getAllPaginated(this.getAlerts, opts)
+  }
+
+  getAllServices (opts) {
+    return this.getAllPaginated(this.getServices, opts)
+  }
+
+  getAllSources (opts) {
+    return this.getAllPaginated(this.getSources, opts)
+  }
+
+  // *** custom finders ***
+
+  _findBy (getAll, what, property, value) {
+    const qs = { [property]: value }
+    // filter remote and locally, since server side qs does a contains-check only
+    return getAll.bind(this)({ qs })
+      .then(_.filter(qs))
+      .then(_.head)
+      .then(resultOrNoSuch(what, value))
+  }
 
   /**
    * Returns (Promise of) first space with given name, compared by strict equality.
    * The Promise will be rejected if no matching space can be found.
    */
   findSpaceByName (name) {
-    return this
-      // filter remote and locally, since server side qs does loose pattern matching
-      .getAllPaginated(this.getSpaces, { qs: { name } })
-      .then(_.filter({ name }))
-      .then(_.head)
-      .then(noSuchOrObj('space', name))
+    return this._findBy(this.getAllSpaces, 'space', 'name', name)
   }
 
   /**
+   * Returns (Promise of) first alert with given name, compared by strict equality.
+   * The Promise will be rejected if no matching alert can be found.
+   */
+  findAlertByName (name) {
+    return this._findBy(this.getAllAlerts, 'alert', 'name', name)
+  }
+
+  /**
+   * Returns (Promise of) first service with given title, compared by strict equality.
+   * The Promise will be rejected if no matching service can be found.
+   */
+  findServiceByTitle (title) {
+    return this._findBy(this.getAllServices, 'service', 'title', title)
+  }
+
+  // *** space and chart ops ***
+
+  /**
    * For the named space return a json object (in a Promise) which can be used to re-create
-   * this full space, including charts, with createOrUpdateSpace.
+   * this full space including charts with createOrUpdateSpace.
    * If there are multiple spaces with the same name it will dump the first one found
    * with findSpaceByName.
    *
    * @Note This includes the definition of all charts but not their visual layout on
-   * the dashboard since the Librato API does not support this at the moment.
+   * the dashboard since the Librato API does not provide this information this at the moment.
    */
   dumpSpace (name) {
     const self = this
@@ -331,6 +485,8 @@ class LibratoApi {
     })
   }
 
+  // *** config management ***
+
   // Transforms config:
   // 1. simplify structure read from a config dir (flattens subdirs and creates predictable arrays)
   // 2. merge the __default__ metric with all other metrics and remove it
@@ -412,6 +568,9 @@ class LibratoApi {
 // annotations required by getAllPaginated
 LibratoApi.prototype.getMetrics.resultPath = 'metrics'
 LibratoApi.prototype.getSpaces.resultPath = 'spaces'
+LibratoApi.prototype.getAlerts.resultPath = 'alerts'
+LibratoApi.prototype.getServices.resultPath = 'services'
+LibratoApi.prototype.getSources.resultPath = 'sources'
 
 const renderCompositeOptions = options => {
   const optVals = _(options || {}).keys().map(k => `${k}:"${options[k]}"`).join(', ')

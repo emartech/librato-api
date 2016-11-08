@@ -8,7 +8,8 @@
 A Librato backend API client library and a simple CLI tool.
 
 This package allows you to manage your Librato backend configuration,
-but not to submit stats. There are other packages doing that.
+but is not intended to submit stats. There are other packages doing that
+in a better way.
 
 It can also be used to query metrics time series values by supplying
 start\_time, end\_time, and other optional parameters to #getMetric.
@@ -16,31 +17,48 @@ start\_time, end\_time, and other optional parameters to #getMetric.
 For a full description of the Librato API see the official
 [Librato API](https://www.librato.com/docs/api/) documentation.
 
-## Examples
+At the moment support for the following sections is implemented:
+Authentication, Pagination, Metrics, Spaces, Charts, Alerts, Services, Sources.
 
-    // uses LIBRATO_USER and LIBRATO_TOKEN in the process'es environment
+Explicit support for the following sections is missing:
+Annotations, API Tokens, Jobs, Snapshots and Measurements Beta.
+This is easy to fix, pull requests are welcome.
+
+## Examples
+    // the package is a ready to use client,
+    // using LIBRATO_USER and LIBRATO_TOKEN from the process environment
     const libratoApi = require('librato-api')
 
-    libratoApi.getMetrics()
-        .then(console.log)  // all methods return Promises
+    // create a client with custom config
+    const LibratoApi = require('librato-api').LibratoAPI
+    const libratoApi = new LibratoAPI({ auth: { user: '...', pass: '...' }, logger: ... })
 
+    // all methods return Promises
+    libratoApi.getMetrics().then(console.log)
+
+    // most methods support an options object which is passed to request-promise
     libratoApi.getMetrics({ qs: { offset: 200, limit: 100 } })
 
-    libratoApi.getAllPaginated(librato.getMetrics)
+    // iterates over pagination
+    libratoApi.getAllMetrics()
 
+    // get a metric definition
     libratoApi.getMetric('router.bytes')
 
+    // for named metric, retrieve time series data for given time frame
     libratoApi.getMetric('router.bytes', { qs: { start_time: date1, end_time: date2 }})
 
+    // update metric definition
     libratoApi.putMetric('customers', { 'period': 3600 })
 
-    // assuming co()
-    const myspace = yield libratoApi.findSpaceByName('myspace')
+    // use custom space finder (getSpace requires id)
+    libratoApi.findSpaceByName('myspace')
 
+    // update chart definition in a space
     libratoApi.putChart(myspace.id, mychartId, mychart)
 
-    // not everything is explicitly supported yet, but you can do generic requests like this
-    libratoApi.apiRequest(['alerts', 123], { name: 'myalert', ... }, { method: 'PUT' })
+    // not everything is explicitly supported yet, but generic api requests are easy to do
+    libratoApi.apiRequest(['annotation', 'backup'], { method: 'PUT', body: { ... } })
 
 ## CLI Tool
 
@@ -64,7 +82,7 @@ integrated help, etc. To see what it's doing it may be helpful to set LOG_LEVEL 
 Apart from functions which model single API calls, the tool can take a local directory
 containing json or js files in a certain structure and apply the contained metrics and spaces to
 a Librato account with the "update-from-dir" command. The repository contains an example directory
-"example-config".
+"example-config" which demonstrates all features.
 
-There's even some templating support to create serieses of similar metrics. The "show-config-dir"
+There is some templating support to create serieses of similar metrics. The "show-config-dir"
 command can be used to debug templating easily.
