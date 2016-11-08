@@ -5,20 +5,16 @@
 [![Coverage Status](https://coveralls.io/repos/github/emartech/librato-api/badge.svg?branch=master)](https://coveralls.io/github/emartech/librato-api?branch=master)
 [![Dependencies Status](https://david-dm.org/emartech/librato-api.svg)](https://david-dm.org/emartech/librato-api)
 
-A Librato backend API client library and a simple CLI tool.
-
-This package allows you to manage your Librato backend configuration,
-but is not intended to submit stats. There are other packages doing that
+This package allows you to manage your Librato backend configuration and query time series data,
+but it is not intended to submit metric data. There are other packages doing that
 in a better way.
-
-It can also be used to query metrics time series values by supplying
-start\_time, end\_time, and other optional parameters to #getMetric.
 
 For a full description of the Librato API see the official
 [Librato API](https://www.librato.com/docs/api/) documentation.
 
 At the moment support for the following sections is implemented:
 Authentication, Pagination, Metrics, Spaces, Charts, Alerts, Services, Sources.
+Note the official API does not expose visual layout of spaces yet, only contents.
 
 Explicit support for the following sections is missing:
 Annotations, API Tokens, Jobs, Snapshots and Measurements Beta.
@@ -29,9 +25,14 @@ This is easy to fix, pull requests are welcome.
     // using LIBRATO_USER and LIBRATO_TOKEN from the process environment
     const libratoApi = require('librato-api')
 
-    // create a client with custom config
+    // it's also possible to create a client with custom config (all properties are optional)
     const LibratoApi = require('librato-api').LibratoAPI
-    const libratoApi = new LibratoAPI({ auth: { user: '...', pass: '...' }, logger: ... })
+    const libratoApi = new LibratoAPI({
+        serviceUrl: 'https://...',
+        auth: { user: '...', pass: '...' },
+        logger: ...,
+        request: ...
+    })
 
     // all methods return Promises
     libratoApi.getMetrics().then(console.log)
@@ -45,7 +46,7 @@ This is easy to fix, pull requests are welcome.
     // get a metric definition
     libratoApi.getMetric('router.bytes')
 
-    // for named metric, retrieve time series data for given time frame
+    // retrieve time series data for metric and time frame
     libratoApi.getMetric('router.bytes', { qs: { start_time: date1, end_time: date2 }})
 
     // update metric definition
