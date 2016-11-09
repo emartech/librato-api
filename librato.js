@@ -23,98 +23,175 @@ const logger = new winston.Logger({
 })
 const libratoApi = new LibratoApi({ logger })
 
-const jsonStringify = json => JSON.stringify(json, undefined, 2) + '\n'
+const getNames = _.map('name')
+const getIdAndNames = _.map(_.at(['id', 'name']))
+const getNamesById = _.flow(getIdAndNames, _.fromPairs)
+const getIdAndTitles = _.map(_.at(['id', 'title']))
+const getTitlesById = _.flow(getIdAndTitles, _.fromPairs)
 
-function * writeFileOrFd (maybeSink, data) {
-  return _.isString(maybeSink)
-    ? yield fs.writeFile(maybeSink, data)
-    : process.stdout.write(data)
+function * readJson (maybeSource) {
+  const source = maybeSource || process.stdin.fd
+  const buffer = yield fs.readFile(source)
+  return JSON.parse(buffer.toString())
 }
 
-// does sync IO
-function readConfigDir (path) {
-  return requireDir(path, { recurse: true })
+function * writeJson (maybeSink, data) {
+  const jsonData = JSON.stringify(data, undefined, 2) + '\n'
+  return (maybeSink === undefined)
+    ? process.stdout.write(jsonData)
+    : yield fs.writeFile(maybeSink, jsonData)
+}
+
+// does sync IO (requireDir)
+function readConfigDir (configDir) {
+  if (configDir === undefined) { throw new Error('missing config dir') }
+  const absConfigDir = configDir.startsWith('/')
+    ? configDir
+    : path.join(process.cwd(), configDir)
+  return requireDir(absConfigDir, { recurse: true })
 }
 
 // -- metric actions
 
 function * listMetrics (maybeSink) {
-  logger.verbose('listing metrics', { to: maybeSink })
-  const metrics = yield libratoApi.getAllPaginated(libratoApi.getMetrics)
-  const compact = _.map(_.get('name'), metrics)
-  yield writeFileOrFd(maybeSink, jsonStringify(compact))
+  logger.verbose('listMetrics', { to: maybeSink })
+  const metrics = yield libratoApi.getAllMetrics()
+  yield writeJson(maybeSink, getNames(metrics))
 }
 
 function * getMetrics (maybeSink) {
-  logger.verbose('dumping metrics', { to: maybeSink })
-  const metrics = yield libratoApi.getAllPaginated(libratoApi.getMetrics)
-  yield writeFileOrFd(maybeSink, jsonStringify(metrics))
+  logger.verbose('getMetrics', { to: maybeSink })
+  const metrics = yield libratoApi.getAllMetrics()
+  yield writeJson(maybeSink, metrics)
 }
 
 function * getMetric (name, maybeSink) {
-  logger.verbose('retrieving metric %s', name, { name, to: maybeSink })
+  logger.verbose('getMetric', { name, to: maybeSink })
   const metric = yield libratoApi.getMetric(name)
-  yield writeFileOrFd(maybeSink, jsonStringify(metric))
+  yield writeJson(maybeSink, metric)
 }
 
-// -- space actions
+// -- space actions (with embedded charts)
 
 function * listSpaces (maybeSink) {
-  logger.verbose('listing spaces', { to: maybeSink })
-  const spaces = yield libratoApi.getAllPaginated(libratoApi.getSpaces)
-  const compact = _.reduce((acc, s) => _.set(s.id, s.name, acc), {}, spaces)
-  yield writeFileOrFd(maybeSink, jsonStringify(compact))
+  logger.verbose('listSpaces', { to: maybeSink })
+  const spaces = yield libratoApi.getAllSpaces()
+  yield writeJson(maybeSink, getNamesById(spaces))
 }
 
 function * dumpSpace (name, maybeSink) {
-  logger.verbose('dumping space', { space: name, to: maybeSink })
+  logger.verbose('dumpSpace', { space: name, to: maybeSink })
   const space = yield libratoApi.dumpSpace(name)
-  yield writeFileOrFd(maybeSink, jsonStringify(space))
+  yield writeJson(maybeSink, space)
 }
 
 function * createOrUpdateSpace (maybeSource) {
-  const source = maybeSource || process.stdin.fd
-  logger.verbose('updating space', { source })
-  const buffer = yield fs.readFile(source)
-  const space = JSON.parse(buffer.toString())
+  logger.verbose('createOrUpdateSpace', { from: maybeSource })
+  const space = readJson(maybeSource)
   logger.debug('space definition', { space })
   yield libratoApi.createOrUpdateSpace(space)
 }
 
 function * deleteSpace (name) {
-  logger.verbose('deleting space', { space: name })
+  logger.verbose('deleteSpace', { space: name })
   const space = yield libratoApi.findSpaceByName(name)
   yield libratoApi.deleteSpace(space.id)
+}
+
+// -- alert actions
+
+function * listAlerts (maybeSink) {
+  logger.verbose('listAlerts', { to: maybeSink })
+  const alerts = yield libratoApi.getAllAlerts()
+  yield writeJson(maybeSink, getNamesById(alerts))
+}
+
+function * getAlerts (maybeSink) {
+  logger.verbose('getAlerts', { to: maybeSink })
+  const alerts = yield libratoApi.getAllAlerts()
+  yield writeJson(maybeSink, alerts)
+}
+
+function * getAlertsStatus (maybeSink) {
+  logger.verbose('getAlertsStatus', { to: maybeSink })
+  const status = yield libratoApi.getAlertsStatus()
+  yield writeJson(maybeSink, status)
+}
+
+function * getAlert (idOrName, maybeSink) {
+  logger.verbose('getAlert', { idOrName, to: maybeSink })
+  const alert = yield libratoApi.getAlert(idOrName)
+    .catch(_err => libratoApi.findAlertByName(idOrName))
+  yield writeJson(maybeSink, alert)
+}
+
+// -- service actions
+
+function * listServices (maybeSink) {
+  logger.verbose('listServices', { to: maybeSink })
+  const services = yield libratoApi.getAllServices()
+  yield writeJson(maybeSink, getTitlesById(services))
+}
+
+function * getServices (maybeSink) {
+  logger.verbose('getServices', { to: maybeSink })
+  const services = yield libratoApi.getAllServices()
+  yield writeJson(maybeSink, services)
+}
+
+function * getService (idOrTitle, maybeSink) {
+  logger.verbose('getService', { idOrTitle, to: maybeSink })
+  const service = yield libratoApi.getService(idOrTitle)
+    .catch(_err => libratoApi.findServiceByTitle(idOrTitle))
+  yield writeJson(maybeSink, service)
+}
+
+// -- source actions
+
+function * listSources (maybeSink) {
+  logger.verbose('listSources', { to: maybeSink })
+  const sources = yield libratoApi.getAllSources()
+  yield writeJson(maybeSink, getNamesById(sources))
+}
+
+function * getSources (maybeSink) {
+  logger.verbose('getSources', { to: maybeSink })
+  const sources = yield libratoApi.getAllSources()
+  yield writeJson(maybeSink, sources)
+}
+
+function * getSource (name, maybeSink) {
+  logger.verbose('getSource', { name, to: maybeSink })
+  const source = yield libratoApi.getSource(name)
+  yield writeJson(maybeSink, source)
 }
 
 // -- config dir actions
 
 function * showConfigDir (configDir, maybeSink) {
-  const absConfigDir = path.join(process.cwd(), configDir)
-  logger.verbose('reading config dir %s', absConfigDir)
-  const config = libratoApi._processRawConfig(readConfigDir(absConfigDir))
-  yield writeFileOrFd(maybeSink, jsonStringify(config))
+  logger.verbose('showConfigDir', { configDir, to: maybeSink })
+  const rawConfig = readConfigDir(configDir)
+  const config = libratoApi._processRawConfig(rawConfig)
+  yield writeJson(maybeSink, config)
 }
 
 function * showRawConfigDir (configDir, maybeSink) {
-  const absConfigDir = path.join(process.cwd(), configDir)
-  logger.verbose('reading config dir %s', absConfigDir)
-  const config = readConfigDir(absConfigDir)
-  yield writeFileOrFd(maybeSink, jsonStringify(config))
+  logger.verbose('showRawConfigDir', { configDir, to: maybeSink })
+  const rawConfig = readConfigDir(configDir)
+  yield writeJson(maybeSink, rawConfig)
 }
 
 /**
- * @TODO Some updates fail silently, e.g. trying to change a metric's l2met_type or created_by_ua.
- *  We could check this, alert, and provid an option to delete-and-recreate.
- *  But we don't know how the mentioned undocumented attributes are used, maybe they are
- *  informational only and we can ignore this.
- * @TODO move the bulk of the logic here to LibratoAPI,
+ * @Note Some updates are silently ignored, e.g. trying to change a metric's
+ * l2met_type or created_by_ua. This is just how the API works.
+ *
+ * @TODO move applying the config from here to LibratoAPI,
  *  collect errors like in createOrUpdateSpace, and provide tests.
  */
 function * updateFromDir (configDir) {
-  const absConfigDir = path.join(process.cwd(), configDir)
-  logger.verbose('updating configuration from config dir %s', absConfigDir)
-  const config = libratoApi._processRawConfig(readConfigDir(absConfigDir))
+  logger.verbose('updateFromDir', { configDir })
+  const rawConfig = readConfigDir(configDir)
+  const config = libratoApi._processRawConfig(rawConfig)
 
   var errorCount = 0
   const logOK = (what, id) => _result => {
@@ -132,9 +209,9 @@ function * updateFromDir (configDir) {
     if (err.statusCode !== 404) throw err
   }
   const withLogging = (what, id, action) =>
-    action.then(logOK(what, id), logAndCountError(what, id))
+    action.then(logOK(what, id)).catch(logAndCountError(what, id))
   const withLoggingIgnore404 = (what, id, action) =>
-    action.then(logOK(what, id)).catch(ignore404).catch(logAndCountError(what, id))
+    action.catch(ignore404).then(logOK(what, id)).catch(logAndCountError(what, id))
 
   const deleteMetric = name =>
     withLoggingIgnore404('delete metric', name, libratoApi.deleteMetric(name))
@@ -149,10 +226,10 @@ function * updateFromDir (configDir) {
     withLogging('update space', space.name, libratoApi.createOrUpdateSpace(space))
 
   yield {
-    outdated: {
-      metrics: _.map(deleteMetric, config.outdated.metrics),
-      spaces: _.map(deleteSpace, config.outdated.spaces)
-    },
+    metrics: _.map(deleteMetric, config.outdated.metrics),
+    spaces: _.map(deleteSpace, config.outdated.spaces)
+  }
+  yield {
     metrics: _.map(updateMetric, config.metrics),
     spaces: _.map(updateSpace, config.spaces)
   }
@@ -164,7 +241,7 @@ function * updateFromDir (configDir) {
 
 function * help () {
   const getCmdList = _.flow(_.keys, _.reject(_.startsWith('_')), _.join(', '))
-  yield writeFileOrFd(null, `Commands: ${getCmdList(actions)}\n`)
+  process.stdout.write(`Commands: ${getCmdList(actions)}\n`)
 }
 
 const actions = {
@@ -175,6 +252,16 @@ const actions = {
   'dump-space': dumpSpace,
   'update-space': createOrUpdateSpace,
   'delete-space': deleteSpace,
+  'list-alerts': listAlerts,
+  'get-alerts': getAlerts,
+  'get-alerts-status': getAlertsStatus,
+  'get-alert': getAlert,
+  'list-services': listServices,
+  'get-services': getServices,
+  'get-service': getService,
+  'list-sources': listSources,
+  'get-sources': getSources,
+  'get-source': getSource,
   'show-config-dir': showConfigDir,
   'show-raw-config-dir': showRawConfigDir,
   'update-from-dir': updateFromDir,
@@ -209,8 +296,8 @@ function * main (argv) {
   }
 }
 
-module.exports = co.wrap(main)
+module.exports = main
 module.exports.actions = actions
 
 // execute main only if required at top level
-if (require.main === module) { module.exports(process.argv) }
+if (require.main === module) { co(main(process.argv)) }
