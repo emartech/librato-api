@@ -1,0 +1,7 @@
+{
+  "title": "Developers List",
+  "type": "mail",
+  "settings": {
+    "addresses": "devs@example.com"
+  }
+}

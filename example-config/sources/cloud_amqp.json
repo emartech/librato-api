@@ -1,0 +1,4 @@
+[
+  { "name": "amusing-mouse-abc", "display_name": "Staging CloudAMQP" },
+  { "name": "amusing-turtle-xyz", "display_name": "Production CloudAMQP" }
+]
