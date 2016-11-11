@@ -12,7 +12,7 @@ const winston = require('winston')
 const _build = method => body => ({ method, body })
 const post = _build('POST')
 const put = _build('PUT')
-const del = _build('DELETE')()
+const del = { method: 'DELETE' }
 const noSuch = _.curry((what, name) => {
   throw new StatusCodeError(404, `no ${what} named ${name}`)
 })
