@@ -7,5 +7,14 @@
   ],
   "spaces": [
     "testspace"
+  ],
+  "alerts": [
+    "testalert"
+  ],
+  "services": [
+    "testservice"
+  ],
+  "sources": [
+    "testsource"
   ]
 }

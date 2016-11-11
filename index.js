@@ -485,6 +485,49 @@ class LibratoApi {
     })
   }
 
+  // *** alert & service ops ***
+
+  // A dumpAlert a la dumpSpace would be nice to have, but it's less work to edit
+  // the result from getAlert than doing the getSpace/getCharts walk.
+
+  /**
+   * Creates or updates an alert by its name.
+   *
+   * This supports specifying the alert's services by service id or title.
+   */
+  createOrUpdateAlert (newAlert) {
+    const self = this
+    return co(function * () {
+      const services = yield self.getAllServices()
+      const getServiceId = titleOrId =>
+        resultOrNoSuch(
+          'service', titleOrId,
+          _.find(s => s.id === titleOrId || s.title === titleOrId, services)
+        ).id
+      const alert = _.merge(
+        newAlert,
+        { services: _.map(getServiceId, newAlert.services) }
+      )
+
+      const alertId = yield self.findAlertByName(alert.name)
+        .then(_.get('id'))
+        .catch(_.constant(undefined))
+      return (alertId === undefined)
+          ? self.postAlert(alert)
+          : self.putAlert(alertId, alert)
+    })
+  }
+
+  /**
+   * Creates or updates a service by its title.
+   */
+  createOrUpdateService (newService) {
+    return this.findServiceByTitle(newService.title).then(
+      service => this.putService(service.id, newService),
+      _err => this.postService(newService)
+    )
+  }
+
   // *** config management ***
 
   // Transforms config:
@@ -499,7 +542,13 @@ class LibratoApi {
 
     const metrics = allFlat(config.metrics)
     const spaces = allFlat(config.spaces)
-    const outdated = _.merge({ metrics: [], spaces: [] }, config.outdated)
+    const alerts = allFlat(config.alerts)
+    const services = allFlat(config.services)
+    const sources = allFlat(config.sources)
+    const outdated = _.merge(
+      { metrics: [], spaces: [], alerts: [], services: [], sources: [] },
+      config.outdated
+    )
     const templateValues = config.template_values || []
 
     const createTemplateValuePermutations = templateValues => {
@@ -557,10 +606,13 @@ class LibratoApi {
     return {
       metrics: processRawMetrics(metrics),
       spaces,
-      outdated: {
-        metrics: templatesPermutations(outdated.metrics),
-        spaces: outdated.spaces
-      }
+      alerts,
+      services,
+      sources,
+      outdated: _.merge(
+        outdated,
+        { metrics: templatesPermutations(outdated.metrics) }
+      )
     }
   }
 }

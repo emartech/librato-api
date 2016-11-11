@@ -95,6 +95,7 @@ describe('LibratoApi.compositeDSL as $', () => {
 
 describe('A test LibratoApi', () => {
   const optsFooBar = { foo: 'bar' }
+
   const stream1 = { name: 's1', id: 1011, type: 'gauge', source: '*' }
   const stream2 = { name: 's2', id: 1012, type: 'counter', source: '%' }
   const stream3 = { name: 's2', id: 1012, type: 'composite', source: '%', composite: 'sum(s (...)', metric: { somthing: 1 } }
@@ -129,6 +130,19 @@ describe('A test LibratoApi', () => {
       { name: 'chart1', streams: [{ name: 's2', source: '%' }] }
     ]
   }
+
+  const oldAlert1 = { id: 101, name: 'alert1', services: [1, 3] }
+  const newAlert1 = { name: 'alert1', services: ['service1', 'service2'] }
+  const newAlert2 = { name: 'alert2', services: ['service1', 'service7'] }
+  const postAlert1 = { name: 'alert1', services: [1, 2] }
+  const resultAlert1 = { id: 101, name: 'alert1', services: [1, 2] }
+  const service1 = { id: 1, title: 'service1' }
+  const service2 = { id: 2, title: 'service2' }
+  const service3 = { id: 3, title: 'service3' }
+  const oldService3 = { id: 3, title: 'service3', old: true }
+  const newService3 = { title: 'service3' }
+  const services = [service1, service2, service3]
+
   const exampleConfig = requireDir('./example-config', { recurse: true })
   const processedExampleConfig = require('./example-config-processed')
 
@@ -736,7 +750,7 @@ describe('A test LibratoApi', () => {
     it('should create a space with charts', function * () {
       sinon.stub(libratoApi, 'findSpaceByName')
         .withArgs('space1')
-        .returns(Promise.resolve(undefined))
+        .returns(Promise.reject('no such space'))
       sinon.stub(libratoApi, 'postSpace')
         .withArgs({ name: 'space1' })
         .returns(Promise.resolve({ name: 'space1', id: 333 }))
@@ -746,6 +760,7 @@ describe('A test LibratoApi', () => {
 
       yield libratoApi.createOrUpdateSpace(space1)
 
+      expect(libratoApi.postSpace).to.have.been.calledOnce
       expect(postSpy).to.have.been.calledTwice
         .and.calledWithExactly(333, space1.charts[0])
         .and.calledWithExactly(333, space1.charts[1])
@@ -760,12 +775,14 @@ describe('A test LibratoApi', () => {
       sinon.stub(libratoApi, 'getCharts')
         .withArgs(333)
         .returns(Promise.resolve([chart1, chart2]))
+      sinon.spy(libratoApi, 'postSpace')
       const postSpy = sinon.spy(libratoApi, 'postChart')
       const putSpy = sinon.spy(libratoApi, 'putChart')
       const deleteSpy = sinon.spy(libratoApi, 'deleteChart')
 
       yield libratoApi.createOrUpdateSpace(space1a)
 
+      expect(libratoApi.postSpace).to.have.been.calledNever
       expect(postSpy).to.have.been.calledOnce
         .and.calledWithExactly(333, space1a.charts[1])
       expect(putSpy).to.have.been.calledOnce
@@ -843,12 +860,98 @@ describe('A test LibratoApi', () => {
     })
   })
 
+  describe('(alert & service)', () => {
+    it('should create an alert', function * () {
+      sinon.stub(libratoApi, 'getAllServices')
+        .returns(Promise.resolve(services))
+      sinon.stub(libratoApi, 'findAlertByName')
+        .withArgs('alert1')
+        .returns(Promise.reject('no such alert'))
+      sinon.stub(libratoApi, 'postAlert')
+        .withArgs(postAlert1)
+        .returns(Promise.resolve(resultAlert1))
+      sinon.spy(libratoApi, 'putAlert')
+
+      const result = yield libratoApi.createOrUpdateAlert(newAlert1)
+
+      expect(libratoApi.postAlert).to.have.been.calledOnce
+      expect(libratoApi.putAlert).to.have.been.calledNever
+      expect(result).to.equal(resultAlert1)
+    })
+
+    it('should update an alert', function * () {
+      sinon.stub(libratoApi, 'getAllServices')
+        .returns(Promise.resolve(services))
+      sinon.stub(libratoApi, 'findAlertByName')
+        .withArgs('alert1')
+        .returns(Promise.resolve(oldAlert1))
+      sinon.spy(libratoApi, 'postAlert')
+      sinon.stub(libratoApi, 'putAlert')
+        .withArgs(101, postAlert1)
+        .returns(Promise.resolve(resultAlert1))
+
+      const result = yield libratoApi.createOrUpdateAlert(newAlert1)
+
+      expect(libratoApi.postAlert).to.have.been.calledNever
+      expect(libratoApi.putAlert).to.have.been.calledOnce
+      expect(result).to.equal(resultAlert1)
+    })
+
+    it('should fail on missing service', function * () {
+      sinon.stub(libratoApi, 'getAllServices')
+        .returns(Promise.resolve(services))
+      sinon.spy(libratoApi, 'findAlertByName')
+      sinon.spy(libratoApi, 'postAlert')
+      sinon.spy(libratoApi, 'putAlert')
+
+      const result = libratoApi.createOrUpdateAlert(newAlert2)
+
+      yield expect(result).to.eventually.be.rejectedWith('no service named service7')
+      expect(libratoApi.findAlertByName).to.have.been.calledNever
+      expect(libratoApi.postAlert).to.have.been.calledNever
+      expect(libratoApi.putAlert).to.have.been.calledNever
+    })
+
+    it('should create a service', function * () {
+      sinon.stub(libratoApi, 'findServiceByTitle')
+        .withArgs('service3')
+        .returns(Promise.reject('no such service'))
+      sinon.stub(libratoApi, 'postService')
+        .withArgs(newService3)
+        .returns(Promise.resolve(service3))
+      sinon.spy(libratoApi, 'putService')
+
+      const result = yield libratoApi.createOrUpdateService(newService3)
+
+      expect(libratoApi.postService).to.have.been.calledOnce
+      expect(libratoApi.putService).to.have.been.calledNever
+      expect(result).to.equal(service3)
+    })
+
+    it('should update a service', function * () {
+      sinon.stub(libratoApi, 'findServiceByTitle')
+        .withArgs('service3')
+        .returns(Promise.resolve(oldService3))
+      sinon.spy(libratoApi, 'postService')
+      sinon.stub(libratoApi, 'putService')
+        .withArgs(3, newService3)
+        .returns(Promise.resolve(service3))
+
+      const result = yield libratoApi.createOrUpdateService(newService3)
+
+      expect(libratoApi.postService).to.have.been.calledNever
+      expect(libratoApi.putService).to.have.been.calledOnce
+      expect(result).to.equal(service3)
+    })
+  })
+
   describe('(config management)', () => {
     it('should process empty raw config', function * () {
       const rawConfig = { }
       const config = libratoApi._processRawConfig(rawConfig)
+      const sections = { metrics: [], spaces: [], alerts: [], services: [], sources: [] }
       expect(config).to.deep.equal(
-        { metrics: [], spaces: [], outdated: { metrics: [], spaces: [] } }
+        _.merge(sections, { outdated: sections })
       )
     })
 

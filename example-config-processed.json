@@ -496,6 +496,36 @@
       ]
     }
   ],
+  "alerts": [
+    {
+      "conditions": [
+        {
+          "metric_name": "customers.dbsize",
+          "source": "prod-*",
+          "threshold": 50000000,
+          "type": "above"
+        }
+      ],
+      "name": "customers.dbsize.too_large",
+      "services": [
+        "Heroku account owner",
+        "Hipchat Devs"
+      ]
+    }
+  ],
+  "services": [
+    {
+      "title": "Developers List",
+      "type": "mail",
+      "settings": {
+        "addresses": "devs@example.com"
+      }
+    }
+  ],
+  "sources": [
+    { "name": "amusing-mouse-abc", "display_name": "Staging CloudAMQP" },
+    { "name": "amusing-turtle-xyz", "display_name": "Production CloudAMQP" }
+  ],
   "outdated": {
     "metrics": [
       "test1",
@@ -507,6 +537,15 @@
     ],
     "spaces": [
       "testspace"
+    ],
+    "alerts": [
+      "testalert"
+    ],
+    "services": [
+      "testservice"
+    ],
+    "sources": [
+      "testsource"
     ]
   }
 }
