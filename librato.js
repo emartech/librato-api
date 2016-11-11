@@ -23,6 +23,7 @@ const logger = new winston.Logger({
 })
 const libratoApi = new LibratoApi({ logger })
 
+const getId = _.get('id')
 const getNames = _.map('name')
 const getIdAndNames = _.map(_.at(['id', 'name']))
 const getNamesById = _.flow(getIdAndNames, _.fromPairs)
@@ -205,33 +206,67 @@ function * updateFromDir (configDir) {
       errors: _.get('error.errors', err)
     })
   }
-  const ignore404 = err => {
-    if (err.statusCode !== 404) throw err
+  const ignore404 = (what, id) => err => {
+    if (err.statusCode === 404) {
+      logger.verbose('%s %s (nothing there)', what, id)
+    } else {
+      throw err
+    }
   }
   const withLogging = (what, id, action) =>
     action.then(logOK(what, id)).catch(logAndCountError(what, id))
   const withLoggingIgnore404 = (what, id, action) =>
-    action.catch(ignore404).then(logOK(what, id)).catch(logAndCountError(what, id))
+    action.then(logOK(what, id), ignore404(what, id)).catch(logAndCountError(what, id))
 
   const deleteMetric = name =>
     withLoggingIgnore404('delete metric', name, libratoApi.deleteMetric(name))
-  const updateMetric = metric =>
-    withLogging('update metric', metric.name, libratoApi.putMetric(metric.name, metric))
   const deleteSpace = name =>
     withLoggingIgnore404(
       'delete space', name,
-      libratoApi.findSpaceByName(name).then(_.get('id')).then(libratoApi.deleteSpace)
+      libratoApi.findSpaceByName(name).then(getId).then(id => libratoApi.deleteSpace(id))
     )
+  const deleteAlert = name =>
+    withLoggingIgnore404(
+      'delete alert', name,
+      libratoApi.findAlertByName(name).then(getId).then(id => libratoApi.deleteAlert(id))
+    )
+  const deleteService = name =>
+    withLoggingIgnore404(
+      'delete service', name,
+      libratoApi.findServiceByTitle(name).then(getId).then(id => libratoApi.deleteService(id))
+    )
+  const deleteSource = name =>
+    withLoggingIgnore404('delete source', name, libratoApi.deleteSource(name))
+
+  const updateMetric = metric =>
+    withLogging('update metric', metric.name, libratoApi.putMetric(metric.name, metric))
   const updateSpace = space =>
     withLogging('update space', space.name, libratoApi.createOrUpdateSpace(space))
+  const updateAlert = alert =>
+    withLogging('update alert', alert.name, libratoApi.createOrUpdateAlert(alert))
+  const updateService = service =>
+    withLogging('update service', service.name, libratoApi.createOrUpdateService(service))
+  const updateSource = source =>
+    withLogging('update source', source.name, libratoApi.putSource(source.name, source))
 
+  // deletes first
   yield {
     metrics: _.map(deleteMetric, config.outdated.metrics),
-    spaces: _.map(deleteSpace, config.outdated.spaces)
+    spaces: _.map(deleteSpace, config.outdated.spaces),
+    alerts: _.map(deleteAlert, config.outdated.alerts),
+    services: _.map(deleteService, config.outdated.services),
+    sources: _.map(deleteSource, config.outdated.sources)
   }
+  // updates
   yield {
     metrics: _.map(updateMetric, config.metrics),
-    spaces: _.map(updateSpace, config.spaces)
+    services: _.map(updateService, config.services),
+    sources: _.map(updateSource, config.sources)
+  }
+  // updates depending on metrics
+  yield {
+    spaces: _.map(updateSpace, config.spaces),
+    alerts: _.map(updateAlert, config.alerts)
   }
 
   if (errorCount > 0) { throw new Error(`${errorCount} errors occured`) }
@@ -281,12 +316,12 @@ function * main (argv) {
     if (process.env.LIBRATO_USER === undefined || process.env.LIBRATO_TOKEN === undefined) {
       throw new Error('LIBRATO_USER and LIBRATO_TOKEN must be set in the environment')
     }
-    // let's look at proper argv parsing sometime
+    // let's look at proper argv parsing and help sometime
     // https://www.npmjs.com/package/command-line-args
     // or https://github.com/75lb/command-line-commands
     const action = _.getOr(unknownCommand, cmd, actions)
     logger.debug('dispatching', { cmd, action, args })
-    yield action.apply(undefined, args)
+    yield _.spread(action)(args)
     logger.debug('success')
   } catch (err) {
     process.exitCode = 1
