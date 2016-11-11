@@ -93,6 +93,6 @@ of names etc. is assumed.
 There is a simple templating feature to create serieses of similar metrics. The "show-config-dir"
 command can be used to debug templating easily.
 
-In general this will leava alone (not delete) server side elements which are not defined
+In general this will leave alone (not delete) server side elements which are not defined
 in the config dir, but it can remove elements which are explicitly enumerated in the
 outdated.json file.
