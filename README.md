@@ -81,9 +81,18 @@ integrated help, etc. To see what it's doing it may be helpful to set LOG_LEVEL 
 ### Configuration Directory Support
 
 Apart from functions which model single API calls, the tool can take a local directory
-containing json or js files in a certain structure and apply the contained metrics and spaces to
+containing json or js files in a certain structure and apply the contained elements to
 a Librato account with the "update-from-dir" command. The repository contains an example directory
-"example-config" which demonstrates all features.
+"example-config" which demonstrates this feature.
 
-There is some templating support to create serieses of similar metrics. The "show-config-dir"
+Note that all elements are referenced by
+their name (or title for alerts), even if the API usually handles them with a numeric id.
+This way generic configuration can be applied to multiple Librato accounts, but uniquness
+of names etc. is assumed.
+
+There is a simple templating feature to create serieses of similar metrics. The "show-config-dir"
 command can be used to debug templating easily.
+
+In general this will leava alone (not delete) server side elements which are not defined
+in the config dir, but it can remove elements which are explicitly enumerated in the
+outdated.json file.
