@@ -152,7 +152,7 @@ function * getService (idOrTitle, maybeSink) {
 function * listSources (maybeSink) {
   logger.verbose('listSources', { to: maybeSink })
   const sources = yield libratoApi.getAllSources()
-  yield writeJson(maybeSink, getNamesById(sources))
+  yield writeJson(maybeSink, getNames(sources))
 }
 
 function * getSources (maybeSink) {
