@@ -245,7 +245,7 @@ function * updateFromDir (configDir) {
   const updateAlert = alert =>
     withLogging('update alert', alert.name, libratoApi.createOrUpdateAlert(alert))
   const updateService = service =>
-    withLogging('update service', service.name, libratoApi.createOrUpdateService(service))
+    withLogging('update service', service.title, libratoApi.createOrUpdateService(service))
   const updateSource = source =>
     withLogging('update source', source.name, libratoApi.putSource(source.name, source))
 
