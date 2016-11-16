@@ -26,6 +26,10 @@
     "cli"
   ],
   "author": "Jürgen Strobel <juergen.strobel@emarsys.com>",
+  "contributors": [
+    "Alexander Daniel <alexander.daniel@emarsys.com>",
+    "Justin Walker <justin.walker@emarsys.com>"
+  ],
   "license": "MIT",
   "bugs": {
     "url": "https://github.com/emartech/librato-api/issues"
