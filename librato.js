@@ -88,7 +88,7 @@ function * dumpSpace (name, maybeSink) {
 
 function * createOrUpdateSpace (maybeSource) {
   logger.verbose('createOrUpdateSpace', { from: maybeSource })
-  const space = readJson(maybeSource)
+  const space = yield readJson(maybeSource)
   logger.debug('space definition', { space })
   yield libratoApi.createOrUpdateSpace(space)
 }
