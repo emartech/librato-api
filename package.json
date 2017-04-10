@@ -58,7 +58,7 @@
     "sinon-chai": "^2.9.0"
   },
   "engines": {
-    "node": ">=5.0.0"
+    "node": "6.10.2"
   },
   "nyc": {
     "exclude": [
