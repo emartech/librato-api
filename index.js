@@ -415,7 +415,7 @@ class LibratoApi {
   /**
    * Create or update a full space including charts from a json object.
    * The format of the object is the one used by postSpace with charts (as per
-   * postChart) embeded in an array under charts:
+   * postChart) embedded in an array under charts:
    *
    * { name: NAME, charts: [ CHARTS* ] }
    *
