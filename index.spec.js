@@ -782,7 +782,7 @@ describe('A test LibratoApi', () => {
 
       yield libratoApi.createOrUpdateSpace(space1a)
 
-      expect(libratoApi.postSpace).to.have.been.calledNever
+      expect(libratoApi.postSpace).to.not.have.been.called
       expect(postSpy).to.have.been.calledOnce
         .and.calledWithExactly(333, space1a.charts[1])
       expect(putSpy).to.have.been.calledOnce
@@ -851,7 +851,7 @@ describe('A test LibratoApi', () => {
       const p = libratoApi.createOrUpdateSpace(space1a)
       yield expect(p).to.eventually.be.rejectedWith('some chart operations failed in space space1')
       yield p.catch(err => {
-        expect(err).to.have.deep.property('error.errors').which.eql([
+        expect(err).to.have.nested.property('error.errors').which.eql([
           { chart: 'chart2', op: 'delete', errors: ['bad delete params'] },
           { chart: 'chart1', op: 'update', errors: ['bad put params'] },
           { chart: 'chart3', op: 'create', errors: ['bad post params'] }
@@ -875,7 +875,7 @@ describe('A test LibratoApi', () => {
       const result = yield libratoApi.createOrUpdateAlert(newAlert1)
 
       expect(libratoApi.postAlert).to.have.been.calledOnce
-      expect(libratoApi.putAlert).to.have.been.calledNever
+      expect(libratoApi.putAlert).to.not.have.been.called
       expect(result).to.equal(resultAlert1)
     })
 
@@ -892,7 +892,7 @@ describe('A test LibratoApi', () => {
 
       const result = yield libratoApi.createOrUpdateAlert(newAlert1)
 
-      expect(libratoApi.postAlert).to.have.been.calledNever
+      expect(libratoApi.postAlert).to.not.have.been.called
       expect(libratoApi.putAlert).to.have.been.calledOnce
       expect(result).to.equal(resultAlert1)
     })
@@ -907,9 +907,9 @@ describe('A test LibratoApi', () => {
       const result = libratoApi.createOrUpdateAlert(newAlert2)
 
       yield expect(result).to.eventually.be.rejectedWith('no service named service7')
-      expect(libratoApi.findAlertByName).to.have.been.calledNever
-      expect(libratoApi.postAlert).to.have.been.calledNever
-      expect(libratoApi.putAlert).to.have.been.calledNever
+      expect(libratoApi.findAlertByName).to.not.have.been.called
+      expect(libratoApi.postAlert).to.not.have.been.called
+      expect(libratoApi.putAlert).to.not.have.been.called
     })
 
     it('should create a service', function * () {
@@ -924,7 +924,7 @@ describe('A test LibratoApi', () => {
       const result = yield libratoApi.createOrUpdateService(newService3)
 
       expect(libratoApi.postService).to.have.been.calledOnce
-      expect(libratoApi.putService).to.have.been.calledNever
+      expect(libratoApi.putService).to.not.have.been.called
       expect(result).to.equal(service3)
     })
 
@@ -939,7 +939,7 @@ describe('A test LibratoApi', () => {
 
       const result = yield libratoApi.createOrUpdateService(newService3)
 
-      expect(libratoApi.postService).to.have.been.calledNever
+      expect(libratoApi.postService).to.not.have.been.called
       expect(libratoApi.putService).to.have.been.calledOnce
       expect(result).to.equal(service3)
     })
