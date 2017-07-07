@@ -50,7 +50,7 @@
     "chai": "3.5.0",
     "chai-as-promised": "6.0.0",
     "co-mocha": "1.2.0",
-    "coveralls": "2.13.0",
+    "coveralls": "2.13.1",
     "eslint": "3.19.0",
     "eslint-plugin-standard": "3.0.1",
     "mocha": "3.2.0",
@@ -59,7 +59,8 @@
     "sinon-chai": "2.9.0"
   },
   "engines": {
-    "node": "6.10.2"
+    "node": "6.11.0",
+    "npm": "5.1.0"
   },
   "nyc": {
     "exclude": [
