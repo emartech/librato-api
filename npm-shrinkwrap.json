@@ -3112,9 +3112,9 @@
       }
     },
     "sinon-chai": {
-      "version": "2.9.0",
-      "resolved": "https://registry.npmjs.org/sinon-chai/-/sinon-chai-2.9.0.tgz",
-      "integrity": "sha1-NNggBCvJZhoUUnEw1AHrRixJu4Q=",
+      "version": "2.11.0",
+      "resolved": "https://registry.npmjs.org/sinon-chai/-/sinon-chai-2.11.0.tgz",
+      "integrity": "sha512-3kbzpr2q8N+M4CWkcym349ifwkXorsbw2YyVpEIvB3AKC/ebrLHXj3DySt8epKGA49zJBSgn1OvWHZ+O+aR0dA==",
       "dev": true
     },
     "slice-ansi": {
