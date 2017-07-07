@@ -194,7 +194,7 @@ function * updateFromDir (configDir) {
   const rawConfig = readConfigDir(configDir)
   const config = libratoApi._processRawConfig(rawConfig)
 
-  var errorCount = 0
+  let errorCount = 0
   const logOK = (what, id) => _result => {
     logger.verbose('%s %s', what, id)
   }
