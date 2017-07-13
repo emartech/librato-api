@@ -513,8 +513,8 @@ class LibratoApi {
         .then(_.get('id'))
         .catch(_.constant(undefined))
       return (alertId === undefined)
-          ? self.postAlert(alert)
-          : self.putAlert(alertId, alert)
+        ? self.postAlert(alert)
+        : self.putAlert(alertId, alert)
     })
   }
 
