@@ -671,13 +671,15 @@ class LibratoApi {
   }
 }
 
-// annotations required by getAllPaginated and getAllPaginatedKeyset
-LibratoApi.prototype.getMetric.resultPath = 'measurements'
+// annotations required by getAllPaginated
 LibratoApi.prototype.getMetrics.resultPath = 'metrics'
 LibratoApi.prototype.getSpaces.resultPath = 'spaces'
 LibratoApi.prototype.getAlerts.resultPath = 'alerts'
 LibratoApi.prototype.getServices.resultPath = 'services'
 LibratoApi.prototype.getSources.resultPath = 'sources'
+
+// annotations required by getAllPaginatedKeyset
+LibratoApi.prototype.getMetric.resultPath = 'measurements'
 
 const renderCompositeOptions = options => {
   const optVals = _(options || {}).keys().map(k => `${k}:"${options[k]}"`).join(', ')
