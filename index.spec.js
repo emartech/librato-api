@@ -253,6 +253,10 @@ describe('A test LibratoApi', () => {
       })
     })
 
+    it('should support getAllPaginatedKeyset for getMetric', function () {
+      expect(libratoApi.getMetric).to.have.property('resultPath', 'measurements')
+    })
+
     it('should put a metric definition', function * () {
       const r = yield libratoApi.putMetric(
         'test.metric',
@@ -656,6 +660,69 @@ describe('A test LibratoApi', () => {
         .returns(Promise.resolve(stubResult))
       const result = yield libratoApi.getAllSources(optsFooBar)
       expect(result).to.deep.equal({ sources: '<all>' })
+    })
+  })
+
+  describe('(keyset pagination iteration helpers)', () => {
+    it('should iterate over and aggregate paginated results', function * () {
+      const getXs = sinon.stub()
+      getXs
+        .withArgs({ foo: 'bar', qs: { start_time: 5 } })
+        .resolves({ query: { next_time: 10 }, xs: { a: [1, 2, 3] }, abc: 'xyz' })
+      getXs
+        .withArgs({ foo: 'bar', qs: { start_time: 10 } })
+        .resolves({ query: { next_time: 20 }, xs: { a: [4], b: [5, 6] }, abc: 'xyz' })
+      getXs
+        .withArgs({ foo: 'bar', qs: { start_time: 20 } })
+        .resolves({ xs: { c: [7, 8, 9] }, abc: 'xyz' })
+      getXs.resultPath = 'xs'
+
+      const opts = { foo: 'bar', qs: { start_time: 5 } }
+      const result = yield libratoApi.getAllPaginatedKeyset(getXs, opts)
+
+      expect(result).to.eql({ xs : { a: [1, 2, 3, 4], b: [5, 6], c: [7, 8, 9] }, abc: 'xyz' })
+      expect(getXs)
+        .to.have.been.calledThrice
+        .and.to.have.always.been.calledOn(libratoApi)
+    })
+
+    it('should bind optional arguments to paginated getter', function * () {
+      const getXs = sinon.stub()
+      getXs
+        .withArgs('argument 1', 'argument 2', optsFooBar)
+        .resolves({ xs: { a: [1, 2, 3] } })
+      getXs.resultPath = 'xs'
+
+      const result = yield libratoApi.getAllPaginatedKeyset(getXs, optsFooBar, 'argument 1', 'argument 2')
+
+      expect(result).to.eql({ xs: { a: [1, 2, 3] } })
+    })
+
+    it('should set an empty object for the nonexistent result path', function * () {
+      const getXs = sinon.stub()
+      getXs
+        .withArgs(optsFooBar)
+        .resolves({ abc: 'xyz' })
+      getXs.resultPath = 'nonexistent'
+
+      const result = yield libratoApi.getAllPaginatedKeyset(getXs, optsFooBar)
+
+      expect(result).to.eql({ nonexistent: {}, abc: 'xyz' })
+    })
+
+    it('should assert valid paginated getter on getAllPaginatedKeyset call', function () {
+      const getXs = sinon.stub()
+      const getAllPaginatedOffset = () => libratoApi.getAllPaginated(getXs)
+      expect(getAllPaginatedOffset).to.throw('invalid paginatedGetter')
+    })
+
+    it('should get all measurements', function * () {
+      const stubResult = { measurements: {} }
+      sinon.stub(libratoApi, 'getAllPaginatedKeyset')
+        .withArgs(libratoApi.getMetric, optsFooBar, 'metric')
+        .resolves(stubResult)
+      const result = yield libratoApi.getAllMeasurements('metric', optsFooBar)
+      expect(result).to.eql({ measurements: {} })
     })
   })
 

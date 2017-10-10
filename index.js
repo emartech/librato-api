@@ -329,6 +329,57 @@ class LibratoApi {
     return getNextPart([], 0)
   }
 
+  /**
+   * Steps through paginated results by repeatedly calling this.paginatedGetter([...args,] opts)
+   * with increasing start_time and merges all parts into the final object (with arrays as values).
+   * It maintains the original structure of the page and returns the other fields of the page, too.
+   *
+   * The caller is responsible for sending the start_time, otherwise the paginated object is empty.
+   * If end_time is not specified, current time is used by Librato.
+   *
+   * @param {function} paginatedGetter - fetches paginated data from Librato
+   * @param {string} paginatedGetter.resultPath
+   * @param {object} opts - options passed in request to Librato
+   * @param {Array.<*>} [args] - optional arguments passed to paginatedGetter
+   */
+  getAllPaginatedKeyset (paginatedGetter, opts, ...args) {
+    assert(paginatedGetter.resultPath, 'invalid paginatedGetter')
+
+    const getPage = paginatedGetter.bind(this, ...args)
+    const unwrapPage = _.get(paginatedGetter.resultPath)
+
+    const optsWithStartTime = startTime =>
+      startTime ? _.merge(opts, { qs: { start_time: startTime } }) : opts
+
+    const mergeResults = (acc, data) => {
+      const keys = _.concat(_.keys(acc), _.keys(data))
+
+      return keys.reduce((newAcc, key) => {
+        newAcc[key] = _.concat(acc[key] || [], data[key] || [])
+        return newAcc
+      }, {})
+    }
+
+    const mergeMetadata = (page, acc) =>
+      _.set(paginatedGetter.resultPath, acc, page)
+
+    const resultOrContinue = acc => page => {
+      const newAcc = mergeResults(acc, unwrapPage(page))
+
+      const nextTime = _.get('query.next_time', page)
+      const isLastPage = nextTime === undefined
+
+      // add acc to the last page to keep other fields in the result
+      // each page has the same fields, so it is OK to use only the last page
+      return isLastPage ? mergeMetadata(page, newAcc) : getNextPart(newAcc, nextTime)
+    }
+
+    const getNextPart = (acc, startTime) =>
+      getPage(optsWithStartTime(startTime)).then(resultOrContinue(acc))
+
+    return getNextPart({})
+  }
+
   getAllMetrics (opts) {
     return this.getAllPaginated(this.getMetrics, opts)
   }
@@ -347,6 +398,10 @@ class LibratoApi {
 
   getAllSources (opts) {
     return this.getAllPaginated(this.getSources, opts)
+  }
+
+  getAllMeasurements (name, opts) {
+    return this.getAllPaginatedKeyset(this.getMetric, opts, name)
   }
 
   // *** custom finders ***
@@ -623,6 +678,9 @@ LibratoApi.prototype.getSpaces.resultPath = 'spaces'
 LibratoApi.prototype.getAlerts.resultPath = 'alerts'
 LibratoApi.prototype.getServices.resultPath = 'services'
 LibratoApi.prototype.getSources.resultPath = 'sources'
+
+// annotations required by getAllPaginatedKeyset
+LibratoApi.prototype.getMetric.resultPath = 'measurements'
 
 const renderCompositeOptions = options => {
   const optVals = _(options || {}).keys().map(k => `${k}:"${options[k]}"`).join(', ')

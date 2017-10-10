@@ -21,57 +21,63 @@ Annotations, API Tokens, Jobs, Snapshots and Measurements Beta.
 This is easy to fix, pull requests are welcome.
 
 ## Examples
-    // the package is a ready to use client,
-    // using LIBRATO_USER and LIBRATO_TOKEN from the process environment
-    const libratoApi = require('librato-api')
+```javascript
+// the package is a ready to use client,
+// using LIBRATO_USER and LIBRATO_TOKEN from the process environment
+const libratoApi = require('librato-api')
 
-    // it's also possible to create a client with custom config (all properties are optional)
-    const LibratoApi = require('librato-api').LibratoAPI
-    const libratoApi = new LibratoAPI({
-        serviceUrl: 'https://...',
-        auth: { user: '...', pass: '...' },
-        logger: ...,
-        request: ...
-    })
+// it's also possible to create a client with custom config (all properties are optional)
+const LibratoApi = require('librato-api').LibratoAPI
+const libratoApi = new LibratoAPI({
+    serviceUrl: 'https://...',
+    auth: { user: '...', pass: '...' },
+    logger: ...,
+    request: ...
+})
 
-    // all methods return Promises
-    libratoApi.getMetrics().then(console.log)
+// all methods return Promises
+libratoApi.getMetrics().then(console.log)
 
-    // most methods support an options object which is passed to request-promise
-    libratoApi.getMetrics({ qs: { offset: 200, limit: 100 } })
+// most methods support an options object which is passed to request-promise
+libratoApi.getMetrics({ qs: { offset: 200, limit: 100 } })
 
-    // iterates over pagination
-    libratoApi.getAllMetrics()
+// iterates over pagination
+libratoApi.getAllMetrics()
 
-    // get a metric definition
-    libratoApi.getMetric('router.bytes')
+// get a metric definition
+libratoApi.getMetric('router.bytes')
 
-    // retrieve time series data for metric and time frame
-    libratoApi.getMetric('router.bytes', { qs: { start_time: date1, end_time: date2 }})
+// retrieve one page of time series data for metric and time frame
+libratoApi.getMetric('router.bytes', { qs: { start_time: date1, end_time: date2 }})
 
-    // update metric definition
-    libratoApi.putMetric('customers', { 'period': 3600 })
+// retrieve all pages of time series data for metric and time frame
+libratoApi.getAllMeasurements('router.bytes', { qs: { start_time: date1, end_time: date2 }})
 
-    // use custom space finder (getSpace requires id)
-    libratoApi.findSpaceByName('myspace')
+// update metric definition
+libratoApi.putMetric('customers', { 'period': 3600 })
 
-    // update chart definition in a space
-    libratoApi.putChart(myspace.id, mychartId, mychart)
+// use custom space finder (getSpace requires id)
+libratoApi.findSpaceByName('myspace')
 
-    // not everything is explicitly supported yet, but generic api requests are easy to do
-    libratoApi.apiRequest(['annotation', 'backup'], { method: 'PUT', body: { ... } })
+// update chart definition in a space
+libratoApi.putChart(myspace.id, mychartId, mychart)
+
+// not everything is explicitly supported yet, but generic api requests are easy to do
+libratoApi.apiRequest(['annotation', 'backup'], { method: 'PUT', body: { ... } })
+```
 
 ## CLI Tool
 
 This package installs a CLI tool named "librato" into your global or package bin-dir.
 
 You have to export LIBRATO_USER and LIBRATO_TOKEN for authentication to work.
-
-    $ export LIBRATO_USER='...'
-    $ export LIBRATO_TOKEN='...'
-    $ librato help
-    $ librato list-metrics
-    $ ...
+```bash
+export LIBRATO_USER='...'
+export LIBRATO_TOKEN='...'
+librato help
+librato list-metrics
+...
+```
 
 ### Warning
 
