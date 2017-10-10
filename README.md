@@ -46,8 +46,11 @@ This is easy to fix, pull requests are welcome.
     // get a metric definition
     libratoApi.getMetric('router.bytes')
 
-    // retrieve time series data for metric and time frame
+    // retrieve one page of time series data for metric and time frame
     libratoApi.getMetric('router.bytes', { qs: { start_time: date1, end_time: date2 }})
+
+    // retrieve all pages of time series data for metric and time frame
+    libratoApi.getAllMeasurements('router.bytes', { qs: { start_time: date1, end_time: date2 }})
 
     // update metric definition
     libratoApi.putMetric('customers', { 'period': 3600 })
