@@ -345,10 +345,11 @@ class LibratoApi {
     const getNextPart = (acc, startTime) =>
       getPage(optsWithStartTime(startTime)).then(resultOrContinue(acc))
     const merge = (acc, data) => {
-      _.keys(data).forEach(key =>
-        acc[key] = _.concat(acc[key] || [], data[key])
-      )
-      return acc
+      const keys = _.concat(_.keys(acc), _.keys(data))
+      return keys.reduce((newAcc, key) => {
+        newAcc[key] = _.concat(acc[key] || [], data[key] || [])
+        return newAcc
+      }, {})
     }
     const addAccToPage = (page, acc) =>
       _.set(paginatedGetter.resultPath, acc, page)
