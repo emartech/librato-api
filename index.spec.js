@@ -668,13 +668,13 @@ describe('A test LibratoApi', () => {
       const getXs = sinon.stub()
       getXs
         .withArgs({ foo: 'bar', qs: { start_time: 5 } })
-        .returns(Promise.resolve({ query: { next_time: 10 }, xs: { a: [1, 2, 3] }, abc: 'xyz' }))
+        .resolves({ query: { next_time: 10 }, xs: { a: [1, 2, 3] }, abc: 'xyz' })
       getXs
         .withArgs({ foo: 'bar', qs: { start_time: 10 } })
-        .returns(Promise.resolve({ query: { next_time: 20 }, xs: { a: [4], b: [5, 6] }, abc: 'xyz' }))
+        .resolves({ query: { next_time: 20 }, xs: { a: [4], b: [5, 6] }, abc: 'xyz' })
       getXs
         .withArgs({ foo: 'bar', qs: { start_time: 20 } })
-        .returns(Promise.resolve({ xs: { c: [7, 8, 9] }, abc: 'xyz' }))
+        .resolves({ xs: { c: [7, 8, 9] }, abc: 'xyz' })
       getXs.resultPath = 'xs'
 
       const opts = { foo: 'bar', qs: { start_time: 5 } }
@@ -690,7 +690,7 @@ describe('A test LibratoApi', () => {
       const getXs = sinon.stub()
       getXs
         .withArgs('argument 1', 'argument 2', optsFooBar)
-        .returns(Promise.resolve({ xs: { a: [1, 2, 3] } }))
+        .resolves({ xs: { a: [1, 2, 3] } })
       getXs.resultPath = 'xs'
 
       const result = yield libratoApi.getAllPaginatedKeyset(getXs, optsFooBar, 'argument 1', 'argument 2')
@@ -702,7 +702,7 @@ describe('A test LibratoApi', () => {
       const getXs = sinon.stub()
       getXs
         .withArgs(optsFooBar)
-        .returns(Promise.resolve({ abc: 'xyz' }))
+        .resolves({ abc: 'xyz' })
       getXs.resultPath = 'nonexistent'
 
       const result = yield libratoApi.getAllPaginatedKeyset(getXs, optsFooBar)
@@ -717,12 +717,12 @@ describe('A test LibratoApi', () => {
     })
 
     it('should get all measurements', function * () {
-      const stubResult = { measurements: '<all>' }
+      const stubResult = { measurements: {} }
       sinon.stub(libratoApi, 'getAllPaginatedKeyset')
         .withArgs(libratoApi.getMetric, optsFooBar, 'metric')
-        .returns(Promise.resolve(stubResult))
+        .resolves(stubResult)
       const result = yield libratoApi.getAllMeasurements('metric', optsFooBar)
-      expect(result).to.eql({ measurements: '<all>' })
+      expect(result).to.eql({ measurements: {} })
     })
   })
 

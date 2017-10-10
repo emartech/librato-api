@@ -338,6 +338,7 @@ class LibratoApi {
    * If end_time is not specified, current time is used by Librato.
    *
    * @param {function} paginatedGetter - fetches paginated data from Librato
+   * @param {string} paginatedGetter.resultPath
    * @param {object} opts - options passed in request to Librato
    * @param {Array.<*>} [args] - optional arguments passed to paginatedGetter
    */
@@ -350,7 +351,7 @@ class LibratoApi {
     const optsWithStartTime = startTime =>
       startTime ? _.merge(opts, { qs: { start_time: startTime } }) : opts
 
-    const merge = (acc, data) => {
+    const mergeResults = (acc, data) => {
       const keys = _.concat(_.keys(acc), _.keys(data))
 
       return keys.reduce((newAcc, key) => {
@@ -359,18 +360,18 @@ class LibratoApi {
       }, {})
     }
 
-    const addAccToPage = (page, acc) =>
+    const mergeMetadata = (page, acc) =>
       _.set(paginatedGetter.resultPath, acc, page)
 
     const resultOrContinue = acc => page => {
-      const newAcc = merge(acc, unwrapPage(page))
+      const newAcc = mergeResults(acc, unwrapPage(page))
 
       const nextTime = _.get('query.next_time', page)
       const isLastPage = nextTime === undefined
 
       // add acc to the last page to keep other fields in the result
       // each page has the same fields, so it is OK to use only the last page
-      return isLastPage ? addAccToPage(page, newAcc) : getNextPart(newAcc, nextTime)
+      return isLastPage ? mergeMetadata(page, newAcc) : getNextPart(newAcc, nextTime)
     }
 
     const getNextPart = (acc, startTime) =>
