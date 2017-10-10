@@ -329,6 +329,40 @@ class LibratoApi {
     return getNextPart([], 0)
   }
 
+  /**
+   * Steps through paginated results by repeatedly calling this.paginatedGetter([...args,] opts)
+   * with increasing start_time and merges all parts into the final object (with arrays as values).
+   * It maintains the original structure of the page and returns the other fields of the page, too.
+   * The caller is responsible for sending the start_time, otherwise the paginated object is empty.
+   * If end_time is not specified, current time is used by Librato.
+   */
+  getAllPaginatedKeyset (paginatedGetter, opts, ...args) {
+    assert(paginatedGetter.resultPath, 'invalid paginatedGetter')
+    const getPage = paginatedGetter.bind(this, ...args)
+    const unwrapPage = _.get(paginatedGetter.resultPath)
+    const optsWithStartTime = startTime =>
+      startTime ? _.merge(opts, { qs: { start_time: startTime } }) : opts
+    const getNextPart = (acc, startTime) =>
+      getPage(optsWithStartTime(startTime)).then(resultOrContinue(acc))
+    const merge = (acc, data) => {
+      _.keys(data).forEach(key =>
+        acc[key] = _.concat(acc[key] || [], data[key])
+      )
+      return acc
+    }
+    const addAccToPage = (page, acc) =>
+      _.set(paginatedGetter.resultPath, acc, page)
+    const resultOrContinue = acc => page => {
+      const newAcc = merge(acc, unwrapPage(page))
+      const nextTime = _.get('query.next_time', page)
+      const isLastPage = nextTime === undefined
+      // add acc to the last page to keep other fields in the result
+      // each page has the same fields, so it is OK to use the last one
+      return isLastPage ? addAccToPage(page, newAcc) : getNextPart(newAcc, nextTime)
+    }
+    return getNextPart({})
+  }
+
   getAllMetrics (opts) {
     return this.getAllPaginated(this.getMetrics, opts)
   }
@@ -347,6 +381,10 @@ class LibratoApi {
 
   getAllSources (opts) {
     return this.getAllPaginated(this.getSources, opts)
+  }
+
+  getAllMeasurements (name, opts) {
+    return this.getAllPaginatedKeyset(this.getMetric, opts, name)
   }
 
   // *** custom finders ***
@@ -617,7 +655,8 @@ class LibratoApi {
   }
 }
 
-// annotations required by getAllPaginated
+// annotations required by getAllPaginated and getAllPaginatedKeyset
+LibratoApi.prototype.getMetric.resultPath = 'measurements'
 LibratoApi.prototype.getMetrics.resultPath = 'metrics'
 LibratoApi.prototype.getSpaces.resultPath = 'spaces'
 LibratoApi.prototype.getAlerts.resultPath = 'alerts'
