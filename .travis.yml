@@ -1,7 +1,7 @@
 language: node_js
 before_install:
   # node version is automatically read from .nvmrc
-  - npm install -g npm@$(cat .npm-version)
+  - npm install --global npm@$(cat .npm-version) && npm --version
 after_success:
   - "npm run coverage"
   - "npm run coverage-coveralls"
