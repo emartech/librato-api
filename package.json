@@ -47,7 +47,7 @@
     "winston": "^2.3.1"
   },
   "devDependencies": {
-    "chai": "4.0.2",
+    "chai": "4.1.2",
     "chai-as-promised": "7.1.1",
     "co-mocha": "1.2.0",
     "coveralls": "3.0.0",
