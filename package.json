@@ -54,7 +54,7 @@
     "eslint": "4.11.0",
     "eslint-plugin-standard": "3.0.1",
     "mocha": "3.4.2",
-    "nyc": "10.3.2",
+    "nyc": "11.3.0",
     "sinon": "2.3.6",
     "sinon-chai": "2.11.0"
   },
