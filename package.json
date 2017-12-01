@@ -53,9 +53,9 @@
     "coveralls": "3.0.0",
     "eslint": "4.12.1",
     "eslint-plugin-standard": "3.0.1",
-    "mocha": "3.4.2",
+    "mocha": "4.0.1",
     "nyc": "11.3.0",
-    "sinon": "2.3.6",
+    "sinon": "4.1.2",
     "sinon-chai": "2.14.0"
   },
   "engines": {
