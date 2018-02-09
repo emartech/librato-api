@@ -39,7 +39,7 @@
   "homepage": "https://www.npmjs.com/package/librato-api",
   "dependencies": {
     "co": "^4.6.0",
-    "js-combinatorics": "^0.5.2",
+    "js-combinatorics": "^0.5.3",
     "lodash": "^4.17.4",
     "mz": "^2.6.0",
     "request-promise": "^4.2.1",
