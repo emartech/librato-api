@@ -1,6 +1,6 @@
 {
   "name": "librato-api",
-  "version": "1.2.3",
+  "version": "1.2.4",
   "description": "A Librato backend API client library and a simple CLI tool.",
   "main": "index.js",
   "scripts": {
