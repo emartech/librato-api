@@ -29,7 +29,8 @@
   "contributors": [
     "Alexander Daniel <alexander.daniel@emarsys.com>",
     "Justin Walker <justin.walker@emarsys.com>",
-    "Dinko Osrecki <dinko.osrecki@emarsys.com>"
+    "Dinko Osrecki <dinko.osrecki@emarsys.com>",
+    "Hristo Ganev <hristo.ganev@emarsys.com>"
   ],
   "license": "MIT",
   "bugs": {
@@ -38,12 +39,12 @@
   "homepage": "https://www.npmjs.com/package/librato-api",
   "dependencies": {
     "co": "^4.6.0",
-    "js-combinatorics": "^0.5.2",
-    "lodash": "^4.17.4",
+    "js-combinatorics": "^0.5.3",
+    "lodash": "^4.17.5",
     "mz": "^2.6.0",
     "request-promise": "^4.2.1",
-    "require-dir": "^0.3.2",
-    "uuid": "^3.1.0",
+    "require-dir": "^1.0.0",
+    "uuid": "^3.2.1",
     "winston": "^2.3.1"
   },
   "devDependencies": {
@@ -51,11 +52,11 @@
     "chai-as-promised": "7.1.1",
     "co-mocha": "1.2.1",
     "coveralls": "3.0.0",
-    "eslint": "4.12.1",
+    "eslint": "4.17.0",
     "eslint-plugin-standard": "3.0.1",
-    "mocha": "4.0.1",
-    "nyc": "11.3.0",
-    "sinon": "4.1.2",
+    "mocha": "5.0.0",
+    "nyc": "11.4.1",
+    "sinon": "4.2.2",
     "sinon-chai": "2.14.0"
   },
   "engines": {
