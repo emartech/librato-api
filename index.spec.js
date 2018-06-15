@@ -154,7 +154,7 @@ describe('A test LibratoApi', () => {
       auth: { user: 'testuser', pass: 'testtoken' },
       // reflect back request options in the result, maybe we should use sinon instead
       request: function () { return Promise.resolve(Array.from(arguments)) },
-      logger: sinon.stub(new (winston.Logger)())
+      logger: sinon.stub(winston.createLogger())
     })
   })
   afterEach(function * () {
