@@ -5,7 +5,7 @@ const request = require('request-promise')
 const requireDir = require('require-dir')
 const winston = require('winston')
 
-const sinonGlobal = require('sinon')
+const sinon = require('sinon')
 const chai = require('chai')
 chai.use(require('sinon-chai'))
 chai.use(require('chai-as-promised'))
@@ -146,9 +146,8 @@ describe('A test LibratoApi', () => {
   const exampleConfig = requireDir('./example-config', { recurse: true })
   const processedExampleConfig = require('./example-config-processed')
 
-  let sinon, libratoApi
+  let libratoApi
   beforeEach(function * () {
-    sinon = sinonGlobal.sandbox.create()
     libratoApi = new LibratoApi.LibratoApi({
       serviceUrl: 'http://url/v1',
       auth: { user: 'testuser', pass: 'testtoken' },
