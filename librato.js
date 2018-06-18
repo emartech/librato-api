@@ -12,15 +12,14 @@ const LibratoApi = require('./index').LibratoApi
 
 const logger = winston.createLogger({
   level: process.env.LIBRATO_LOG_LEVEL || process.env.LOG_LEVEL || 'info',
-  transports: [
-    new winston.transports.Console({
-      stderrLevels: _.keys(winston.levels),
-      prettyPrint: true,
-      align: true,
-      colorize: true
-    })
-  ]
+  transports: [new winston.transports.Console()],
+  format: winston.format.combine(
+    winston.format.colorize(),
+    winston.format.simple(),
+    winston.format.align()
+  )
 })
+
 const libratoApi = new LibratoApi({ logger })
 
 const getId = _.get('id')
