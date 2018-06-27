@@ -1,6 +1,6 @@
 {
   "name": "librato-api",
-  "version": "1.2.7",
+  "version": "1.2.8",
   "description": "A Librato backend API client library and a simple CLI tool.",
   "main": "index.js",
   "scripts": {
@@ -45,7 +45,7 @@
     "request-promise": "^4.2.2",
     "require-dir": "^1.0.0",
     "uuid": "^3.2.1",
-    "winston": "^3.0.0"
+    "winston": "^2.4.3"
   },
   "devDependencies": {
     "chai": "4.1.2",
