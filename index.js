@@ -20,12 +20,14 @@ const resultOrNoSuch = _.curry((what, name, obj) => _.isUndefined(obj) ? noSuch(
  *
  * Unless overridden by options this will pick up LIBRATO_USER and LIBRATO_TOKEN from
  * the process environment (this works out of the box on Heroku).
+ * 
+ * Addition of APPOPTICS_TOKEN
  *
  * @param options {object} A plain object, which allows to override the following properties:
  *   - serviceUrl (String): the base of the service URL
  *   - auth (object): passed to the underlying request handler in each request
  *   - request: the underlying request-promise object, may be used to set defaults
- *   - logger: use a custom logger, else try winston.loggers.LibratoAPi or root winston
+ *   - logger: use a custom logger, else try winston.loggers.AppOpticsAPI or root winston
  *
  * @see https://www.librato.com/docs/api/?shell#introduction
  *
@@ -33,14 +35,14 @@ const resultOrNoSuch = _.curry((what, name, obj) => _.isUndefined(obj) ? noSuch(
  *
  * @author Jürgen Strobel <juergen.strobel@emarsys.com>
  */
-class LibratoApi {
+class AppOpticsAPI {
 
   constructor (options) {
     const o = options || {}
-    this.serviceUrl = o.serviceUrl || 'https://metrics-api.librato.com/v1'
-    this.auth = o.auth || { user: process.env.LIBRATO_USER, pass: process.env.LIBRATO_TOKEN }
+    this.serviceUrl = o.serviceUrl || 'https://api.appoptics.com/v1/metrics'
+    this.auth = o.auth || { pass: process.env.APPOPTICS_TOKEN }
     this.request = o.request || request
-    this.logger = o.logger || winston.loggers.LibratoApi || winston
+    this.logger = o.logger || winston.loggers.AppOpticsAPI || winston
   }
 
   // *** straight API calls ***
@@ -72,15 +74,15 @@ class LibratoApi {
       opts2 || {}
     )
     const logResult = result => {
-      this.logger.silly('LibratoAPI#apiRequest result', { result, requestId })
+      this.logger.silly('AppOpticsAPI#apiRequest result', { result, requestId })
       return result
     }
     const logErrorRethrow = error => {
-      this.logger.silly('LibratoAPI#apiRequest error', { error, requestId })
+      this.logger.silly('AppOpticsAPI#apiRequest error', { error, requestId })
       throw error
     }
 
-    this.logger.debug('LibratoAPI#apiRequest', { path, opts, opts2, requestId })
+    this.logger.debug('AppOpticsAPI#apiRequest', { path, opts, opts2, requestId })
     return this.request(options).then(logResult).catch(logErrorRethrow)
   }
 
@@ -673,14 +675,14 @@ class LibratoApi {
 }
 
 // annotations required by getAllPaginated
-LibratoApi.prototype.getMetrics.resultPath = 'metrics'
-LibratoApi.prototype.getSpaces.resultPath = 'spaces'
-LibratoApi.prototype.getAlerts.resultPath = 'alerts'
-LibratoApi.prototype.getServices.resultPath = 'services'
-LibratoApi.prototype.getSources.resultPath = 'sources'
+AppOpticsAPI.prototype.getMetrics.resultPath = 'metrics'
+AppOpticsAPI.prototype.getSpaces.resultPath = 'spaces'
+AppOpticsAPI.prototype.getAlerts.resultPath = 'alerts'
+AppOpticsAPI.prototype.getServices.resultPath = 'services'
+AppOpticsAPI.prototype.getSources.resultPath = 'sources'
 
 // annotations required by getAllPaginatedKeyset
-LibratoApi.prototype.getMetric.resultPath = 'measurements'
+AppOpticsAPI.prototype.getMetric.resultPath = 'measurements'
 
 const renderCompositeOptions = options => {
   const optVals = _(options || {}).keys().map(k => `${k}:"${options[k]}"`).join(', ')
@@ -713,7 +715,7 @@ const series = (name, source, options) =>
  *
  * There is no validation in regard to set arity or allowed options.
  */
-LibratoApi.prototype.compositeDSL = {
+AppOpticsAPI.prototype.compositeDSL = {
   series,
   s: series,
   renderCompositeFn,
@@ -736,8 +738,8 @@ LibratoApi.prototype.compositeDSL = {
 }
 
 /**
- * At the root this package is a ready to use LibratoApi instance with default options.
- * For use cases requiring more flexibility the class constructor is exported as LibratoApi.
+ * At the root this package is a ready to use AppOpticsAPI instance with default options.
+ * For use cases requiring more flexibility the class constructor is exported as AppOpticsAPI.
  */
-module.exports = new LibratoApi()
-module.exports.LibratoApi = LibratoApi
+module.exports = new AppOpticsAPI()
+module.exports.AppOpticsAPI = AppOpticsAPI

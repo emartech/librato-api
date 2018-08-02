@@ -24,11 +24,11 @@ This is easy to fix, pull requests are welcome.
 ```javascript
 // the package is a ready to use client,
 // using LIBRATO_USER and LIBRATO_TOKEN from the process environment
-const libratoApi = require('librato-api')
+const AppOpticsAPI = require('librato-api')
 
 // it's also possible to create a client with custom config (all properties are optional)
-const LibratoApi = require('librato-api').LibratoAPI
-const libratoApi = new LibratoAPI({
+const AppOpticsAPI = require('librato-api').AppOpticsAPI
+const AppOpticsAPI = new AppOpticsAPI({
     serviceUrl: 'https://...',
     auth: { user: '...', pass: '...' },
     logger: ...,
@@ -36,34 +36,34 @@ const libratoApi = new LibratoAPI({
 })
 
 // all methods return Promises
-libratoApi.getMetrics().then(console.log)
+AppOpticsAPI.getMetrics().then(console.log)
 
 // most methods support an options object which is passed to request-promise
-libratoApi.getMetrics({ qs: { offset: 200, limit: 100 } })
+AppOpticsAPI.getMetrics({ qs: { offset: 200, limit: 100 } })
 
 // iterates over pagination
-libratoApi.getAllMetrics()
+AppOpticsAPI.getAllMetrics()
 
 // get a metric definition
-libratoApi.getMetric('router.bytes')
+AppOpticsAPI.getMetric('router.bytes')
 
 // retrieve one page of time series data for metric and time frame
-libratoApi.getMetric('router.bytes', { qs: { start_time: date1, end_time: date2 }})
+AppOpticsAPI.getMetric('router.bytes', { qs: { start_time: date1, end_time: date2 }})
 
 // retrieve all pages of time series data for metric and time frame
-libratoApi.getAllMeasurements('router.bytes', { qs: { start_time: date1, end_time: date2 }})
+AppOpticsAPI.getAllMeasurements('router.bytes', { qs: { start_time: date1, end_time: date2 }})
 
 // update metric definition
-libratoApi.putMetric('customers', { 'period': 3600 })
+AppOpticsAPI.putMetric('customers', { 'period': 3600 })
 
 // use custom space finder (getSpace requires id)
-libratoApi.findSpaceByName('myspace')
+AppOpticsAPI.findSpaceByName('myspace')
 
 // update chart definition in a space
-libratoApi.putChart(myspace.id, mychartId, mychart)
+AppOpticsAPI.putChart(myspace.id, mychartId, mychart)
 
 // not everything is explicitly supported yet, but generic api requests are easy to do
-libratoApi.apiRequest(['annotation', 'backup'], { method: 'PUT', body: { ... } })
+AppOpticsAPI.apiRequest(['annotation', 'backup'], { method: 'PUT', body: { ... } })
 ```
 
 ## CLI Tool
